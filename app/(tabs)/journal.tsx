@@ -1,22 +1,11 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from "react-native";
 
-export default function HomeScreen() {
+export default function journal() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.text}>u will be journaling your thoughts soon hehe</Text>
+    <View style={{ flex: 1, backgroundColor: "#f0f0f0", justifyContent: "center", alignItems: "center" }}>
+      <Text style={{ fontSize: 20 }}>journal is in progress</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fdeaff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 20,
-    color: '#9A5DC6',
-  },
-});
+// Compare this snippet from app/%28tabs%29/settings.tsx:
+// import { View, Text, StyleSheet } from 'react-native';

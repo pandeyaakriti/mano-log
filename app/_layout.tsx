@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+
+
+
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={({ route }) => ({
+
         tabBarActiveTintColor: '#9A5DC6',
         tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { backgroundColor: '#f8e8ff', height: 60 },
+        tabBarStyle: { backgroundColor: '#fff6f6f6', height: 66, width: 416, borderTopWidth: 0, position: 'absolute', bottom: 0, left: 0, right: 0 },
         headerShown: false,
         tabBarIcon: ({ color, size }) => {
           let iconName: any;

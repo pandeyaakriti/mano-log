@@ -1,45 +1,97 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+//import { Feather, Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons } from '@expo/vector-icons';
 
+import { Tabs, useRouter } from "expo-router";
+import { Platform, StyleSheet, Text, TouchableOpacity } from "react-native";
 
+export default function Layout() {
+  const router = useRouter();
 
-
-export default function TabLayout() {
   return (
-    <Tabs
-      screenOptions={({ route }) => ({
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarShowLabel: false,
+          tabBarStyle: {
+            backgroundColor: "#fff",
+            height: 70,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            position: "absolute",
+            paddingBottom: Platform.OS === "android" ? 10 : 30,
+          },
+          headerShown: false,
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="home-outline" size={28} color="#754491" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="trends"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="bar-chart-2" size={28} color="#754491" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="chat"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="chatbubble-ellipses-outline" size={28} color="#754491" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="settings" size={28} color="#754491" />
+            ),
+          }}
+        />
+      </Tabs>
 
-        tabBarActiveTintColor: '#9A5DC6',
-        tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { backgroundColor: '#fff6f6f6', height: 66, width: 416, borderTopWidth: 0, position: 'absolute', bottom: 0, left: 0, right: 0 },
-        headerShown: false,
-        tabBarIcon: ({ color, size }) => {
-          let iconName: any;
-
-          switch (route.name) {
-            case 'index':
-              iconName = 'home-outline';
-              break;
-            case 'journal':
-              iconName = 'book-outline';
-              break;
-            case 'mood':
-              iconName = 'happy-outline';
-              break;
-            case 'insights':
-              iconName = 'chatbubble-ellipses-outline';
-              break;
-            case 'chat':
-              iconName = 'person-outline';
-              break;
-            case 'trends':
-              iconName = 'bar-chart-outline';
-              break;
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-      })}
-    />
+      {/* Floating Journal Button */}
+      <TouchableOpacity
+        onPress={() => router.push("/journal")}
+        style={styles.floatingButton}
+      >
+        <Text style={styles.plusIcon}>＋</Text>
+      </TouchableOpacity>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  floatingButton: {
+    position: "absolute",
+    bottom: 35,
+    alignSelf: "center",
+    backgroundColor: "#fff",
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#754491",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 10,
+  },
+  plusIcon: {
+    fontSize: 40,
+    color: "#754491",
+    marginTop: -4,
+  },
+});

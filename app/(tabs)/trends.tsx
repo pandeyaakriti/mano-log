@@ -1,9 +1,9 @@
 import { Text, View } from "react-native";
 
-export default function Index() {
+export default function trends() {
   return (
     <View style={{ flex: 1, backgroundColor: "#f0f0f0", justifyContent: "center", alignItems: "center" }}>
-      <Text style={{ fontSize: 20 }}>Home is in progress</Text>
+      <Text style={{ fontSize: 20 }}>mood swings chart</Text>
     </View>
   );
 }

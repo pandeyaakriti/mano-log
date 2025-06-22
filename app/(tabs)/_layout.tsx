@@ -1,11 +1,13 @@
 //import { Feather, Ionicons } from "@expo/vector-icons";
 import { Feather, Ionicons } from '@expo/vector-icons';
-
-import { Tabs, useRouter } from "expo-router";
+import { Tabs, useRouter, usePathname } from "expo-router";
 import { Platform, StyleSheet, Text, TouchableOpacity } from "react-native";
 
 export default function Layout() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const isChatScreen = pathname.endsWith("/chat");
 
   return (
     <>
@@ -45,6 +47,7 @@ export default function Layout() {
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="chatbubble-ellipses-outline" size={28} color="#754491" />
             ),
+            tabBarStyle: { display: 'none' },
           }}
         />
         <Tabs.Screen
@@ -58,12 +61,14 @@ export default function Layout() {
       </Tabs>
 
       {/* Floating Journal Button */}
+      {!isChatScreen && (
       <TouchableOpacity
         onPress={() => router.push("/journal")}
         style={styles.floatingButton}
       >
         <Text style={styles.plusIcon}>＋</Text>
       </TouchableOpacity>
+      )}
     </>
   );
 }

@@ -1,60 +1,80 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React from 'react';
+import { Link, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
-import { Link } from 'expo-router';
+import { useAuth } from '../context/AuthContext';
 
-export default function index() {
+export default function IndexScreen() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user) {
+      // User is authenticated, redirect to main app
+      router.replace('/(tabs)');
+    }
+  }, [user, loading, router]);
+
+  // Show loading screen while checking auth
+  if (loading) {
+    return (
+      <LinearGradient
+        colors={['#FFDDEC', '#D5AFC7', '#C295BC']}
+        locations={[0.1, 0.3, 0.5]}
+        style={[styles.container, { justifyContent: 'center' }]}>
+        <Text style={styles.title}>Loading...</Text>
+      </LinearGradient>
+    );
+  }
+
+  // Show welcome screen for unauthenticated users
   return (
     <LinearGradient
       colors={['#FFDDEC', '#D5AFC7', '#C295BC']}
       locations={[0.1, 0.3, 0.5]}
-      style={styles.container} >
+      style={styles.container}>
 
       <View style={styles.logocontainer}>
-        <Image source={require('../assets/images/Manolog.png')}
+        <Image 
+          source={require('../assets/images/Manolog.png')}
           style={styles.logo}
-          resizeMode="contain" />
-
-        <Text style={styles.title}> MANO-LOG </Text>
-
-        <Text style={styles.subtitle}> A log of your mind</Text>
+          resizeMode="contain" 
+        />
+        <Text style={styles.title}>MANO-LOG</Text>
+        <Text style={styles.subtitle}>A log of your mind</Text>
       </View>
 
       <View style={{ width: '80%' }}>
-        <Link href="/signup" asChild>
-        <TouchableOpacity style={styles.signupbutton}>
-          <Text style={styles.signuptext}> SIGN UP </Text>
-        </TouchableOpacity>
+        <Link href="/auth/signup" asChild>
+          <TouchableOpacity style={styles.signupbutton}>
+            <Text style={styles.signuptext}>SIGN UP</Text>
+          </TouchableOpacity>
         </Link>
         
-        <Link href="/login" asChild>
+        <Link href="/auth/login" asChild>
           <TouchableOpacity style={styles.loginbutton}>
-            <Text style={styles.logintext}> LOGIN </Text>
+            <Text style={styles.logintext}>LOGIN</Text>
           </TouchableOpacity>
         </Link>
       </View>
 
       <View style={styles.socialcontainer}>
-        <Text style={styles.socialtext}> Login with social media </Text>
-
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'center',
-          gap: 5,
-        }}>{['instagram', 'twitter', 'facebook'].map((icon, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.socialIconsbackground}
-          >
-            <FontAwesome name={icon} size={25} color="#8A2D6B" />
-          </TouchableOpacity>
-        ))}
+        <Text style={styles.socialtext}>Login with social media</Text>
+        <View style={styles.socialIconsContainer}>
+          {['google', 'facebook', 'twitter'].map((icon, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.socialIconsbackground}>
+              <FontAwesome name={icon} size={25} color="#8A2D6B" />
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     </LinearGradient>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -135,6 +155,11 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 15,
     marginBottom: 15,
+  },
+  socialIconsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
   },
   socialIconsbackground: {
     backgroundColor: 'white',

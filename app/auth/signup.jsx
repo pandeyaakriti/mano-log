@@ -1,13 +1,53 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link } from 'expo-router';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 
-export default function SignupPage() {
+export default function Signup() {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { signup } = useAuth();
+
+  const handleSignup = async () => {
+    if (!name || !email || !password) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const additionalData = {
+        name,
+        phone: phone || null,
+      };
+      
+      await signup(email, password, additionalData);
+      router.replace('/(tabs)');
+    } catch (error) {
+      Alert.alert('Signup Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const navigateToLogin = () => {
+    router.push('/auth/login');
+  };
+
   return (
     <LinearGradient
       colors={['#FFDDEC', '#D5AFC7', '#C295BC']}
       locations={[0.1, 0.3, 0.5]}
-      style={styles.container} >
+      style={styles.container}>
 
       <View style={styles.topsection}>
         <Text style={styles.title}>Hello{'\n'}Create your {'\n'}account!</Text>
@@ -16,51 +56,71 @@ export default function SignupPage() {
       <View style={styles.cardWrapper}>
         <View style={styles.card}>
           <View style={styles.form}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>Name *</Text>
             <TextInput
               style={styles.input}
-              secureTextEntry
-              placeholderTextColor="#888"
+              placeholder="Enter your name"
+              placeholderTextColor="#A2A2A2"
+              value={name}
+              onChangeText={setName}
             />
+            
             <Text style={styles.label}>Phone</Text>
             <TextInput
               style={styles.input}
-              secureTextEntry
-              placeholderTextColor="#888"
+              placeholder="Your phone number"
+              placeholderTextColor="#A2A2A2"
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
             />
-            <Text style={styles.label}>Gmail</Text>
+            
+            <Text style={styles.label}>Gmail *</Text>
             <TextInput
               style={styles.input}
               placeholder="yourname@gmail.com"
               placeholderTextColor="#A2A2A2"
               keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
             />
 
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>Password *</Text>
             <TextInput
               style={styles.input}
+              placeholder="Minimum 6 characters"
+              placeholderTextColor="#A2A2A2"
               secureTextEntry
-              placeholderTextColor="#888"
+              value={password}
+              onChangeText={setPassword}
             />
 
-            <Link href="/login" asChild>
-            <TouchableOpacity style={styles.button}>
-              <Text style={styles.buttonText}>SIGNUP</Text>
+            <TouchableOpacity 
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSignup}
+              disabled={loading}>
+              <Text style={styles.buttonText}>
+                {loading ? 'CREATING ACCOUNT...' : 'SIGNUP'}
+              </Text>
             </TouchableOpacity>
-            </Link>
           </View>
         </View>
       </View>
 
       <View style={styles.socialcontainer}>
         <Text style={styles.socialtext}>
-          <Text>Already have an account?{'\n'}Login here</Text>
+          Already have an account?{'\n'}Login here
         </Text>
+        <TouchableOpacity onPress={navigateToLogin} style={styles.loginLink}>
+          <Text style={styles.loginLinkText}>Go to Login</Text>
+        </TouchableOpacity>
       </View>
     </LinearGradient>
-
   );
 }
+
+// ... (styles remain the same as your original)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -75,7 +135,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-
   card: {
     backgroundColor: '#F9F9F9',
     borderRadius: 50,
@@ -89,7 +148,6 @@ const styles = StyleSheet.create({
     elevation: 10,
     alignSelf: 'center',
     marginLeft: 30,
-
   },
   topsection: {
     alignItems: 'flex-start',
@@ -119,7 +177,7 @@ const styles = StyleSheet.create({
     borderColor: '#A2A2A2',
     paddingVertical: 5,
     fontSize: 14,
-    color: '#A2A2A2',
+    color: '#333',
   },
   button: {
     backgroundColor: '#8D658A',
@@ -142,6 +200,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   socialcontainer: {
     alignSelf: 'center',
     position: 'absolute',
@@ -155,5 +216,17 @@ const styles = StyleSheet.create({
     color: '#F0EFEF',
     fontSize: 13,
     marginBottom: 15,
+  },
+  loginLink: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+  },
+  loginLinkText: {
+    color: '#F0EFEF',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });

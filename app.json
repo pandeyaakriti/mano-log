@@ -3,6 +3,7 @@
     "name": "mano-log",
     "slug": "mano-log",
     "version": "1.0.0",
+    "package": "com.manolog.app",
     "orientation": "portrait",
     "icon": "./assets/images/logobgrm.png",
     "scheme": "manolog",
@@ -16,7 +17,8 @@
         "foregroundImage": "./assets/images/logobgrm.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.aatmiyata.manolog"
     },
     "web": {
       "bundler": "metro",
@@ -24,7 +26,6 @@
       "favicon": "./assets/images/logobgrm.png"
     },
     "plugins": [
-      "expo-router",
       [
         "expo-splash-screen",
         {
@@ -34,11 +35,19 @@
           "backgroundColor": "#ffffff"
         }
       ],
+      "expo-dev-client",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-router"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "13b8c97f-3c87-46e4-9be7-d00763963b54"
+      }
     }
   }
 }

@@ -1,15 +1,50 @@
 import { FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, router} from 'expo-router';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
 
-export default function LoginPage() {
+const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { login, signInWithGoogle } = useAuth();
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await login(email, password);
+      router.replace('/(tabs)');
+    } catch (error) {
+      Alert.alert('Login Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      await signInWithGoogle();
+      // Note: Navigation will happen automatically when auth state changes
+    } catch (error) {
+      Alert.alert('Google Sign-In Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-
     <LinearGradient
       colors={['#FFDDEC', '#D5AFC7', '#C295BC']}
       locations={[0.1, 0.3, 0.5]}
-      style={styles.gradient} >
+      style={styles.gradient}>
 
       <View style={styles.topsection}>
         <Text style={styles.title}>Hello{'\n'}Login Here!</Text>
@@ -24,6 +59,9 @@ export default function LoginPage() {
               placeholder="yourname@gmail.com"
               placeholderTextColor="#A2A2A2"
               keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
             />
 
             <Text style={styles.label}>Password</Text>
@@ -31,6 +69,8 @@ export default function LoginPage() {
               style={styles.input}
               secureTextEntry
               placeholderTextColor="#888"
+              value={password}
+              onChangeText={setPassword}
             />
 
             <TouchableOpacity style={styles.forgot}>
@@ -38,39 +78,43 @@ export default function LoginPage() {
             </TouchableOpacity>
             
             <TouchableOpacity
-  style={styles.button}
-  onPress={() => router.replace('/(tabs)')}
->
-  <Text style={styles.buttonText}>LOGIN</Text>
-</TouchableOpacity>
-
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.buttonText}>
+                {loading ? 'LOGGING IN...' : 'LOGIN'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
 
       <View style={styles.socialcontainer}>
         <Text style={styles.socialtext}>
-          <Text>Dont have any account? {'\n'}Sign up with social media</Text>
+          Dont have any account? {'\n'}Sign up with social media
         </Text>
 
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'center',
-          gap: 5,
-        }}>{['instagram', 'twitter', 'facebook'].map((icon, index) => (
+        <View style={styles.socialIcons}>
           <TouchableOpacity
-            key={index}
             style={styles.socialIconsbackground}
+            onPress={handleGoogleSignIn}
+            disabled={loading}
           >
-            <FontAwesome name={icon} size={25} color="#8A2D6B" />
+            <FontAwesome name="google" size={25} color="#8A2D6B" />
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity style={styles.socialIconsbackground}>
+            <FontAwesome name="facebook" size={25} color="#8A2D6B" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.socialIconsbackground}>
+            <FontAwesome name="twitter" size={25} color="#8A2D6B" />
+          </TouchableOpacity>
         </View>
       </View>
     </LinearGradient>
-
   );
-}
+};
+
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
@@ -79,14 +123,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 35,
     paddingVertical: 50,
   },
-
   cardWrapper: {
     marginTop: -30,
     marginLeft: -25,
     alignItems: 'center',
     width: '100%',
   },
-
   card: {
     backgroundColor: '#F9F9F9',
     borderRadius: 50,
@@ -100,7 +142,6 @@ const styles = StyleSheet.create({
     elevation: 10,
     alignSelf: 'center',
     marginLeft: 30,
-
   },
   topsection: {
     alignItems: 'flex-start',
@@ -130,7 +171,7 @@ const styles = StyleSheet.create({
     borderColor: '#aaa',
     paddingVertical: 5,
     fontSize: 14,
-    color: '#A2A2A2',
+    color: '#333',
   },
   forgot: {
     alignSelf: 'flex-end',
@@ -161,6 +202,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   socialcontainer: {
     alignSelf: 'center',
     position: 'absolute',
@@ -175,6 +219,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 15,
   },
+  socialIcons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+  },
   socialIconsbackground: {
     backgroundColor: 'white',
     borderRadius: 25,
@@ -186,3 +235,4 @@ const styles = StyleSheet.create({
   },
 });
 
+export default Login;

@@ -1,6 +1,5 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname, useRouter } from "expo-router";
-import { Tabs, usePathname, useRouter } from "expo-router";
 import { Platform, StyleSheet, Text, TouchableOpacity } from "react-native";
 
 export default function TabsLayout() {
@@ -75,12 +74,7 @@ export default function TabsLayout() {
           style={styles.floatingButton}>
           <Text style={styles.plusIcon}>＋</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push("/journal")} // journal should not be in Tabs
-          style={styles.floatingButton}
-        >
-          <Text style={styles.plusIcon}>＋</Text>
-        </TouchableOpacity>
+        
       )}
     </>
   );

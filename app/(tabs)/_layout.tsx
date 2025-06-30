@@ -25,44 +25,56 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: () => (
               <Ionicons name="home-outline" size={28} color="#754491" />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="trends"
-          options={{
-            tabBarIcon: ({ color, size }) => (
-              <Feather name="bar-chart-2" size={28} color="#754491" />
             ),
           }}
         />
         <Tabs.Screen
           name="chat"
           options={{
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: () => (
               <Ionicons name="chatbubble-ellipses-outline" size={28} color="#754491" />
             ),
             tabBarStyle: { display: 'none' },
           }}
         />
+
+        {/* Hidden Placeholder for Center Button */}
+        <Tabs.Screen
+          name="placeholder"
+          options={{
+            tabBarButton: () => null,
+          }}
+        />
+
+        <Tabs.Screen
+          name="trends"
+          options={{
+            tabBarIcon: () => (
+              <Feather name="bar-chart-2" size={28} color="#754491" />
+            ),
+          }}
+        />
+
         <Tabs.Screen
           name="settings"
           options={{
-            tabBarIcon: ({ color, size }) => (
+            tabBarIcon: () => (
               <Feather name="settings" size={28} color="#754491" />
             ),
           }}
         />
       </Tabs>
 
+      {/* Floating + Journal Button */}
       {!isChatScreen && (
         <TouchableOpacity
           onPress={() => router.push("/journal")}
           style={styles.floatingButton}>
           <Text style={styles.plusIcon}>＋</Text>
         </TouchableOpacity>
+        
       )}
     </>
   );

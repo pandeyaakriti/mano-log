@@ -19,98 +19,103 @@ export default function Homepage() {
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.wrapper}>
-        <ScrollView contentContainerStyle={styles.container}>
-          {/* Profile Header Section */}
-          <View style={styles.profileHeader}>
-            <Image
-              source={require('../../assets/images/image.png')}
-              style={styles.profileImage}
-            />
-            <Text style={styles.greeting}>Hey kreetee,{"\n"}how are you doing today?</Text>
-          </View>
-
-          {/* Reflection Section */}
-<View style={styles.reflectionSection}>
-  <Text style={styles.sectionTitle}>Daily Reflection</Text>
-  <TextInput
-    placeholder="How do you feel about your current emotions?"
-    value={reflection}
-    onChangeText={setReflection}
-    style={styles.textInput}
-    multiline
-  />
-  <Pressable
-    style={styles.reflectButton}
-    onPress={() => console.log('Reflect button pressed')}
-  >
-    <Text style={styles.reflectButtonText}>Reflect Here</Text>
-    <Icon name="arrow-forward" size={20} color="#333" />
-  </Pressable>
-</View>
-
-          {/* Mood Log Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Daily Mood Log</Text>
-            <View style={styles.moodRow}>
-              {moods.map((mood, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.moodButton,
-                    selectedMood === mood && styles.moodSelected,
-                  ]}
-                  onPress={() => setSelectedMood(mood)}
-                >
-                  <Text style={styles.moodText}>{mood}</Text>
-                </TouchableOpacity>
-              ))}
+    <View style={styles.gradient}>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.wrapper}>
+          <ScrollView contentContainerStyle={styles.container}>
+            {/* Profile Header Section */}
+            <View style={styles.profileHeader}>
+              <Image
+                source={require('../../assets/images/image.png')}
+                style={styles.profileImage}
+              />
+              <Text style={styles.greeting}>Hey kreetee,{"\n"}how are you doing today?</Text>
             </View>
-          </View>
 
-          {/* Affirmation Section */}
-<View style={styles.affirmationSection}>
-  <Text style={styles.sectionTitle}>Daily Words of affirmations</Text>
-  <Text style={styles.affirmationContent}>
-    You are capable of amazing things. Every step forward, no matter how small, is progress worth celebrating.
-  </Text>
-</View>
-        </ScrollView>
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity onPress={() => console.log('Home')}>
-            <Icon name="home-outline" size={24} color="#333" />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => console.log('Search')}>
-            <Icon name="search-outline" size={24} color="#333" />
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => console.log('Add')}>
-            <View style={styles.addButton}>
-              <Icon name="add" size={24} color="#F4CBE4" />
+            {/* Reflection Section */}
+            <View style={styles.reflectionSection}>
+              <Text style={styles.sectionTitle}>Daily Reflection</Text>
+              <TextInput
+                placeholder="How do you feel about your current emotions?"
+                value={reflection}
+                onChangeText={setReflection}
+                style={styles.textInput}
+                multiline
+              />
+              <Pressable
+                style={styles.reflectButton}
+                onPress={() => console.log('Reflect button pressed')}
+              >
+                <Text style={styles.reflectButtonText}>Reflect Here</Text>
+                <Icon name="arrow-forward" size={20} color="#333" />
+              </Pressable>
             </View>
-          </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => console.log('Analytics')}>
-            <Icon name="analytics-outline" size={24} color="#333" />
-          </TouchableOpacity>
+            {/* Mood Log Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Daily Mood Log</Text>
+              <View style={styles.moodRow}>
+                {moods.map((mood, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.moodButton,
+                      selectedMood === mood && styles.moodSelected,
+                    ]}
+                    onPress={() => setSelectedMood(mood)}
+                  >
+                    <Text style={styles.moodText}>{mood}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
-          <TouchableOpacity onPress={() => console.log('Settings')}>
-            <Icon name="settings-outline" size={24} color="#333" />
-          </TouchableOpacity>
+            {/* Affirmation Section */}
+            <View style={styles.affirmationSection}>
+              <Text style={styles.sectionTitle}>Daily Words of affirmations</Text>
+              <Text style={styles.affirmationContent}>
+                You are capable of amazing things. Every step forward, no matter how small, is progress worth celebrating.
+              </Text>
+            </View>
+          </ScrollView>
+
+          {/* Bottom Navigation */}
+          <View style={styles.bottomNav}>
+            <TouchableOpacity onPress={() => console.log('Home')}>
+              <Icon name="home-outline" size={24} color="#333" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => console.log('Chat')}>
+              <Icon name="chatbubble-outline" size={24} color="#333" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => console.log('Add')}>
+              <View style={styles.addButton}>
+                <Icon name="add" size={24} color="#F4CBE4" />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => console.log('Mood Insights')}>
+              <Icon name="analytics-outline" size={24} color="#333" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => console.log('Settings')}>
+              <Icon name="settings-outline" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+    backgroundColor: '#E7B8D9', 
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4CBE4',
   },
   wrapper: {
     flex: 1,
@@ -119,7 +124,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 100,
-    backgroundColor: '#F4CBE4',
     flexGrow: 1,
   },
   profileHeader: {
@@ -192,24 +196,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 10,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   reflectButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
+    marginRight: 10,
   },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: 10,
-    backgroundColor: '#fff', // Changed to white
+    backgroundColor: '#fff',
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopWidth: 1,
-    borderTopColor: '#e2b3cb',
   },
   addButton: {
     backgroundColor: '#fff',
@@ -226,8 +231,8 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   affirmationContent: {
-  color: '#666',
-  lineHeight: 22,
-  fontSize: 14,
-},
+    color: '#666',
+    lineHeight: 22,
+    fontSize: 14,
+  },
 });

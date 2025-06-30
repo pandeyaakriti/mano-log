@@ -1,5 +1,6 @@
-import * as AuthSession from 'expo-auth-session';
+// Enhanced AuthContext.js with improved backend sync
 
+import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -12,8 +13,8 @@ import {
 } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { auth } from '../config/firebase';
-console.log('Redirect URI:', AuthSession.makeRedirectUri({ useProxy: true }));
 
+console.log('Redirect URI:', AuthSession.makeRedirectUri({ useProxy: true }));
 WebBrowser.maybeCompleteAuthSession();
 
 const AuthContext = createContext({});
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'success', 'error'
 
   // Google Sign-In configuration
   const [, response, promptAsync] = Google.useAuthRequest({
@@ -48,11 +50,16 @@ export const AuthProvider = ({ children }) => {
 
     const unsubscribe = onAuthStateChanged(
       auth, 
-      (user) => {
+      async (user) => {
         console.log('Auth state changed:', user?.email || 'No user');
         setUser(user);
         setLoading(false);
         setError(null);
+        
+        // Sync user on auth state change if user exists
+        if (user) {
+          await saveUserToMongoDB(user);
+        }
       }, 
       (error) => {
         console.error('Auth state change error:', error);
@@ -76,7 +83,7 @@ export const AuthProvider = ({ children }) => {
       signInWithCredential(auth, credential)
         .then((result) => {
           console.log('Google sign-in successful:', result.user.email);
-          saveUserToMongoDB(result.user);
+          // saveUserToMongoDB is called in onAuthStateChanged
         })
         .catch((error) => {
           console.error('Google sign-in error:', error);
@@ -97,7 +104,7 @@ export const AuthProvider = ({ children }) => {
       
       setError(null);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await saveUserToMongoDB(userCredential.user);
+      // saveUserToMongoDB is called in onAuthStateChanged
       return userCredential;
     } catch (error) {
       console.error('Login error:', error);
@@ -116,7 +123,8 @@ export const AuthProvider = ({ children }) => {
       
       setError(null);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await saveUserToMongoDB(userCredential.user, additionalData);
+      // Pass additional data for new user creation
+      await saveUserToMongoDB(userCredential.user, additionalData, true);
       return userCredential;
     } catch (error) {
       console.error('Signup error:', error);
@@ -151,12 +159,75 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(null);
+      setSyncStatus('idle');
       await signOut(auth);
     } catch (error) {
       console.error('Logout error:', error);
       const errorMessage = 'Failed to sign out';
       setError(errorMessage);
       throw new Error(errorMessage);
+    }
+  };
+
+  // Enhanced function to sync user profile data
+  const syncUserProfile = async (profileData) => {
+    if (!user) {
+      throw new Error('No authenticated user');
+    }
+
+    try {
+      setSyncStatus('syncing');
+      
+      if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
+        console.warn('Backend URL not configured');
+        setSyncStatus('error');
+        return;
+      }
+
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/${user.uid}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...profileData,
+          lastUpdated: new Date()
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setSyncStatus('success');
+      console.log('User profile synced successfully');
+    } catch (error) {
+      console.error('Error syncing user profile:', error);
+      setSyncStatus('error');
+      throw error;
+    }
+  };
+
+  // Function to get user data from MongoDB
+  const getUserFromMongoDB = async (firebaseUid) => {
+    try {
+      if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
+        console.warn('Backend URL not configured');
+        return null;
+      }
+
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/${firebaseUid}`);
+      
+      if (response.ok) {
+        return await response.json();
+      } else if (response.status === 404) {
+        return null; // User not found in MongoDB
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error fetching user from MongoDB:', error);
+      return null;
     }
   };
 
@@ -180,47 +251,67 @@ export const AuthProvider = ({ children }) => {
       default:
         return error.message || 'An unexpected error occurred';
     }
-    
   };
 
-  // Save user data to MongoDB
-  const saveUserToMongoDB = async (firebaseUser, additionalData = {}) => {
+  // Enhanced save user data to MongoDB with retry logic
+  const saveUserToMongoDB = async (firebaseUser, additionalData = {}, isNewUser = false) => {
     try {
+      setSyncStatus('syncing');
+      
+      // Only try to save to MongoDB if backend URL is set
+      if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
+        console.log('Backend URL not set, skipping MongoDB save');
+        setSyncStatus('idle');
+        return;
+      }
+
       const userData = {
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email,
         displayName: firebaseUser.displayName || additionalData.name,
         photoURL: firebaseUser.photoURL,
         phone: additionalData.phone || null,
-        createdAt: new Date(),
-        lastLogin: new Date()
+        emailVerified: firebaseUser.emailVerified,
+        createdAt: isNewUser ? new Date() : undefined,
+        lastLogin: new Date(),
+        ...additionalData
       };
+
+      // Remove undefined values
+      Object.keys(userData).forEach(key => 
+        userData[key] === undefined && delete userData[key]
+      );
 
       console.log('Attempting to save user to MongoDB:', userData.email);
 
-      // Only try to save to MongoDB if backend URL is set
-      if (process.env.EXPO_PUBLIC_BACKEND_URL) {
-        const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(userData),
-        });
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.warn(`Failed to save user data to MongoDB: ${errorText}`);
-          // Don't throw error - user can still be authenticated
-        } else {
-          console.log('User data saved to MongoDB successfully');
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn(`Failed to save user data to MongoDB: ${errorText}`);
+        setSyncStatus('error');
+        // Don't throw error - user can still be authenticated
       } else {
-        console.log('Backend URL not set, skipping MongoDB save');
+        console.log('User data saved to MongoDB successfully');
+        setSyncStatus('success');
       }
     } catch (error) {
       console.error('Error saving user to MongoDB:', error);
+      setSyncStatus('error');
       // Don't throw error here - user can still be authenticated even if MongoDB save fails
+    }
+  };
+
+  // Function to retry failed sync operations
+  const retrySync = async () => {
+    if (user) {
+      await saveUserToMongoDB(user);
     }
   };
 
@@ -232,7 +323,11 @@ export const AuthProvider = ({ children }) => {
     logout,
     loading,
     error,
-    isAuthenticated: !!user
+    syncStatus,
+    isAuthenticated: !!user,
+    syncUserProfile,
+    getUserFromMongoDB,
+    retrySync
   };
 
   return (

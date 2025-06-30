@@ -14,7 +14,6 @@
     "@expo/cli": "^0.24.15",
     "@expo/metro-config": "^0.20.15",
     "@expo/vector-icons": "^14.1.0",
-    "@prisma/client": "^6.2.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-firebase/auth": "^22.2.1",
     "@react-native-google-signin/google-signin": "^15.0.0",
@@ -62,6 +61,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@prisma/client": "^6.10.1",
     "@types/react": "~19.0.10",
     "@types/react-native-vector-icons": "^6.4.18",
     "eslint": "^9.25.0",

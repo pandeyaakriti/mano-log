@@ -1,3 +1,4 @@
+import { Ionicons as Icon } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -10,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Ionicons as Icon } from '@expo/vector-icons';
 //import Icon from 'react-native-vector-icons/Ionicons';
 
 interface Message {

@@ -1,6 +1,6 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname, useRouter } from "expo-router";
-import { Platform, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -19,40 +19,55 @@ export default function TabsLayout() {
             borderTopRightRadius: 20,
             position: "absolute",
             paddingBottom: Platform.OS === "android" ? 10 : 30,
+            paddingTop: 10,
           },
           headerShown: false,
         }}>
         <Tabs.Screen
           name="index"
           options={{
-            tabBarIcon: () => (
-              <Ionicons name="home-outline" size={28} color="#754491" />
+            tabBarIcon: ({ focused }) => (
+              <Ionicons 
+                name={focused ? "home" : "home-outline"} 
+                size={24} 
+                color="#754491" 
+              />
             ),
           }}
         />
         <Tabs.Screen
           name="chat"
           options={{
-            tabBarIcon: () => (
-              <Ionicons name="chatbubble-ellipses-outline" size={28} color="#754491" />
+            tabBarIcon: ({ focused }) => (
+              <Ionicons 
+                name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"} 
+                size={24} 
+                color="#754491" 
+              />
             ),
             tabBarStyle: { display: 'none' },
           }}
         />
 
-        {/* Hidden Placeholder for Center Button */}
+        {/* Center Placeholder for Floating Button */}
         <Tabs.Screen
           name="placeholder"
           options={{
-            tabBarButton: () => null,
+            tabBarButton: () => (
+              <View style={styles.centerButtonPlaceholder} />
+            ),
           }}
         />
 
         <Tabs.Screen
           name="trends"
           options={{
-            tabBarIcon: () => (
-              <Feather name="bar-chart-2" size={28} color="#754491" />
+            tabBarIcon: ({ focused }) => (
+              <Feather 
+                name="bar-chart-2" 
+                size={24} 
+                color="#754491" 
+              />
             ),
           }}
         />
@@ -60,8 +75,12 @@ export default function TabsLayout() {
         <Tabs.Screen
           name="settings"
           options={{
-            tabBarIcon: () => (
-              <Feather name="settings" size={28} color="#754491" />
+            tabBarIcon: ({ focused }) => (
+              <Feather 
+                name="settings" 
+                size={24} 
+                color="#754491" 
+              />
             ),
           }}
         />
@@ -71,20 +90,25 @@ export default function TabsLayout() {
       {!isChatScreen && (
         <TouchableOpacity
           onPress={() => router.push("/journal")}
-          style={styles.floatingButton}>
-          <Text style={styles.plusIcon}>＋</Text>
+          style={styles.floatingButton}
+          activeOpacity={0.8}>
+          <Ionicons name="add" size={28} color="#754491" />
         </TouchableOpacity>
-        
       )}
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  centerButtonPlaceholder: {
+    width: 70,
+    height: 70,
+  },
   floatingButton: {
     position: "absolute",
-    bottom: 35,
-    alignSelf: "center",
+    bottom: Platform.OS === "ios" ? 45 : 40,
+    left: "50%",
+    marginLeft: -35, // Half of width to center
     backgroundColor: "#fff",
     width: 70,
     height: 70,
@@ -100,11 +124,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
     zIndex: 10,
+    borderWidth: 3,
+    borderColor: "#754491",
   },
-  plusIcon: {
-    fontSize: 40,
-    color: "#754491",
-    marginTop: -4,
-  },
-}
-);
+});

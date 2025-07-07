@@ -14,8 +14,11 @@ model User {
   id             String         @id @default(auto()) @map("_id") @db.ObjectId
   firebaseUid    String         @unique
   email          String         @unique
-  username       String         @unique
+  username       String?        @unique
   displayName    String?
+  phone          String?       
+  emailVerified  Boolean?       
+  lastLogin      DateTime? 
   photoURL       String?
   timezone       String         @default("UTC")
   journalEntries JournalEntry[]
@@ -111,7 +114,7 @@ model MoodSummary {
   totalEntries    Int         @default(0)
   averageMood     Float?
   createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  updatedAt       DateTime?    @updatedAt
   
   @@unique([userId, timePeriodType, periodStartDate])
   @@map("mood_summaries")

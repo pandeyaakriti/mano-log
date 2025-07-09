@@ -1,5 +1,15 @@
+// File: app/%28tabs%29/index.tsx
+// This file is part of the Mano Log app, a mental health journaling application.
+// It provides the main homepage layout, including user profile, daily reflection, mood log, and
+// daily affirmations. The app uses React Native for the frontend and integrates with a backend server for data management.
+// The homepage allows users to reflect on their emotions, log their daily mood, and view affirm
+// ations to promote positive mental health.
+
+
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   SafeAreaView,
@@ -8,15 +18,87 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { journalAPI } from '../../config/api';
+import { useAuth } from '../../context/AuthContext';
+
+
+type User = {
+  id: string;
+  displayName?: string;
+  email?: string;
+  // add other properties as needed
+};
 
 export default function Homepage() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth() as { user: User | null };
 
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
+
+  const handleReflectPress = async () => {
+    // Validation
+    if (!reflection.trim()) {
+      Alert.alert('Empty Reflection', 'Please write something before reflecting.');
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert('Authentication Error', 'Please sign in to save your reflection.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Save journal entry
+      await journalAPI.create(user.id, reflection.trim());
+      
+      // Show success message
+      Alert.alert(
+        'Reflection Saved! 🌟',
+        'Your thoughts have been safely stored in your journal.',
+        [
+          {
+            text: 'Continue Writing',
+            style: 'default',
+          },
+          {
+            text: 'View Journal',
+            onPress: () => {
+              // Navigate to journal/settings screen
+              // You'll need to implement this based on your navigation setup
+              console.log('Navigate to journal');
+            },
+          },
+        ]
+      );
+
+      // Clear the input
+      setReflection('');
+      
+    } catch (error) {
+      console.error('Error saving reflection:', error);
+      Alert.alert(
+        'Save Failed',
+        'We couldn\'t save your reflection right now. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getUserDisplayName = () => {
+    if (user?.displayName) return user.displayName;
+    if (user?.email) return user.email.split('@')[0];
+    return 'friend';
+  };
+  const greeting = `Hey ${getUserDisplayName()},\nhow are you doing today?`;
 
   return (
     <View style={styles.gradient}>
@@ -29,25 +111,54 @@ export default function Homepage() {
                 source={require('../../assets/images/image.png')}
                 style={styles.profileImage}
               />
-              <Text style={styles.greeting}>Hey kreetee,{"\n"}how are you doing today?</Text>
+              <Text style={styles.greeting}>
+                Hey {getUserDisplayName()},{"\n"}how are you doing today?</Text>
             </View>
 
             {/* Reflection Section */}
             <View style={styles.reflectionSection}>
-              <Text style={styles.sectionTitle}>Daily Reflection</Text>
+               <Text style={styles.sectionTitle}>Daily Reflection</Text>
               <TextInput
                 placeholder="How do you feel about your current emotions?"
                 value={reflection}
                 onChangeText={setReflection}
-                style={styles.textInput}
+                style={[styles.textInput, { fontSize: 20 }]}
                 multiline
-              />
-              <Pressable
+                maxLength={1000}
+                editable={!isLoading}
+                />
+              {/* Character count */}
+              <Text style={styles.characterCount}>
+                {reflection.length}/1000 characters
+              </Text>
+
+              {/* Reflect Button */}
+              {/* <Pressable
                 style={styles.reflectButton}
                 onPress={() => console.log('Reflect button pressed')}
               >
                 <Text style={styles.reflectButtonText}>Reflect Here</Text>
                 <Icon name="arrow-forward" size={20} color="#333" />
+              </Pressable>
+            </View> */}
+            <Pressable
+                style={[
+                  styles.reflectButton,
+                  (isLoading || !reflection.trim()) && styles.reflectButtonDisabled
+                ]}
+                onPress={handleReflectPress}
+                disabled={isLoading || !reflection.trim()}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#333" size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.reflectButtonText}>
+                      {reflection.trim() ? 'Save Reflection' : 'Write Something First'}
+                    </Text>
+                    <Icon name="arrow-forward" size={20} color="#333" />
+                  </>
+                )}
               </Pressable>
             </View>
 
@@ -146,6 +257,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reflectionSection: {
+    fontSize: 12,
     marginBottom: 25,
     backgroundColor: '#F7F0F3',
     borderRadius: 15,
@@ -174,6 +286,15 @@ const styles = StyleSheet.create({
     padding: 10,
     textAlignVertical: 'top',
     minHeight: 60,
+    fontSize: 60,
+    color: '#333',
+  },
+  characterCount: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'right',
+    marginTop: 5,
+    marginBottom: 10,
   },
   moodRow: {
     flexDirection: 'row',
@@ -190,14 +311,19 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   reflectButton: {
-    marginTop: 10,
+    //marginTop: 10,
     backgroundColor: '#CFD9B4',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 10,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
+  },
+  reflectButtonDisabled: {
+  backgroundColor: '#E5E5E5',
+  opacity: 0.6,
   },
   reflectButtonText: {
     fontSize: 16,

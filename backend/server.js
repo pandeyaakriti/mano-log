@@ -1,75 +1,32 @@
-// backend/server.js - Enhanced version with additional endpoints
+// backend/server.js - Using Prisma instead of MongoDB driver
 require('dotenv').config({ path: '../.env' });
 
 const express = require('express');
-const { MongoClient} = require('mongodb');
+const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Initialize Prisma
+const prisma = new PrismaClient();
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  console.error('MONGODB_URI is not defined in environment variables');
-  process.exit(1);
+// Test database connection
+async function testConnection() {
+  try {
+    await prisma.$connect();
+    console.log('Connected to database via Prisma');
+  } catch (error) {
+    console.error('Database connection error:', error);
+    process.exit(1);
+  }
 }
 
-let db;
-
-MongoClient.connect(MONGODB_URI)
-  .then(async client => {
-    console.log('Connected to MongoDB');
-    db = client.db();
-    
-    // Create indexes for better performance (with error handling)
-    try {
-      // Check if firebaseUid index exists
-      const indexes = await db.collection('users').listIndexes().toArray();
-      const firebaseUidIndexExists = indexes.some(index => 
-        index.key && index.key.firebaseUid
-      );
-      
-      if (!firebaseUidIndexExists) {
-        await db.collection('users').createIndex({ firebaseUid: 1 }, { unique: true });
-        console.log('Created firebaseUid index');
-      } else {
-        console.log('firebaseUid index already exists');
-      }
-      
-      // Check if email index exists
-      const emailIndexExists = indexes.some(index => 
-        index.key && index.key.email && !index.key.firebaseUid
-      );
-      
-      if (!emailIndexExists) {
-        await db.collection('users').createIndex({ email: 1 });
-        console.log('Created email index');
-      } else {
-        console.log('email index already exists');
-      }
-    } catch (indexError) {
-      console.warn('Index creation warning:', indexError.message);
-      // Continue running even if index creation fails
-    }
-  })
-  .catch(error => {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
-  });
-
-// Middleware to check database connection
-const checkDbConnection = (req, res, next) => {
-  if (!db) {
-    return res.status(503).json({ error: 'Database not available' });
-  }
-  next();
-};
+testConnection();
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -77,7 +34,7 @@ app.get('/health', (req, res) => {
 });
 
 // Create or update user
-app.post('/api/users', checkDbConnection, async (req, res) => {
+app.post('/api/users', async (req, res) => {
   try {
     const userData = req.body;
     
@@ -87,61 +44,54 @@ app.post('/api/users', checkDbConnection, async (req, res) => {
     }
     
     // Check if user already exists
-    const existingUser = await db.collection('users').findOne({
-      firebaseUid: userData.firebaseUid
+    const existingUser = await prisma.user.findUnique({
+      where: { firebaseUid: userData.firebaseUid }
     });
 
     if (existingUser) {
       // Update existing user
-      const updateData = {
-        lastLogin: new Date(),
-        email: userData.email,
-        displayName: userData.displayName,
-        photoURL: userData.photoURL,
-        emailVerified: userData.emailVerified,
-        phone: userData.phone
-      };
-      
-      // Remove undefined values
-      Object.keys(updateData).forEach(key => 
-        updateData[key] === undefined && delete updateData[key]
-      );
-
-      const result = await db.collection('users').updateOne(
-        { firebaseUid: userData.firebaseUid },
-        { $set: updateData }
-      );
-      
-      // Get updated user
-      const updatedUser = await db.collection('users').findOne({
-        firebaseUid: userData.firebaseUid
+      const updatedUser = await prisma.user.update({
+        where: { firebaseUid: userData.firebaseUid },
+        data: {
+          lastLogin: new Date(),
+          email: userData.email,
+          displayName: userData.displayName,
+          photoURL: userData.photoURL,
+          emailVerified: userData.emailVerified,
+          phone: userData.phone,
+        }
       });
       
       res.json({ 
         message: 'User login updated', 
         user: updatedUser,
-        modified: result.modifiedCount > 0
+        modified: true
       });
     } else {
       // Create new user
-      const newUserData = {
-        ...userData,
-        createdAt: new Date(),
-        lastLogin: new Date()
-      };
+      const newUser = await prisma.user.create({
+        data: {
+          firebaseUid: userData.firebaseUid,
+          email: userData.email,
+          displayName: userData.displayName,
+          photoURL: userData.photoURL,
+          emailVerified: userData.emailVerified,
+          phone: userData.phone,
+          createdAt: new Date(),
+          lastLogin: new Date()
+        }
+      });
       
-      const result = await db.collection('users').insertOne(newUserData);
       res.status(201).json({ 
         message: 'User created', 
-        userId: result.insertedId,
-        user: newUserData
+        user: newUser
       });
     }
   } catch (error) {
     console.error('Error handling user:', error);
     
-    if (error.code === 11000) {
-      // Duplicate key error
+    if (error.code === 'P2002') {
+      // Prisma unique constraint error
       res.status(409).json({ error: 'User already exists' });
     } else {
       res.status(500).json({ error: 'Internal server error' });
@@ -150,7 +100,7 @@ app.post('/api/users', checkDbConnection, async (req, res) => {
 });
 
 // Get user by Firebase UID
-app.get('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
+app.get('/api/users/:firebaseUid', async (req, res) => {
   try {
     const { firebaseUid } = req.params;
     
@@ -158,7 +108,9 @@ app.get('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
       return res.status(400).json({ error: 'firebaseUid is required' });
     }
 
-    const user = await db.collection('users').findOne({ firebaseUid });
+    const user = await prisma.user.findUnique({
+      where: { firebaseUid }
+    });
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -172,7 +124,7 @@ app.get('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
 });
 
 // Update user profile
-app.patch('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
+app.patch('/api/users/:firebaseUid', async (req, res) => {
   try {
     const { firebaseUid } = req.params;
     const updateData = req.body;
@@ -181,38 +133,38 @@ app.patch('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
       return res.status(400).json({ error: 'firebaseUid is required' });
     }
 
-    // Remove firebaseUid from update data to prevent modification
+    // Remove fields that shouldn't be updated
     delete updateData.firebaseUid;
-    delete updateData._id;
+    delete updateData.id;
+    delete updateData.createdAt;
     
     // Add lastUpdated timestamp
     updateData.lastUpdated = new Date();
 
-    const result = await db.collection('users').updateOne(
-      { firebaseUid },
-      { $set: updateData }
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Get updated user
-    const updatedUser = await db.collection('users').findOne({ firebaseUid });
+    const updatedUser = await prisma.user.update({
+      where: { firebaseUid },
+      data: updateData
+    });
     
     res.json({ 
       message: 'User updated successfully', 
       user: updatedUser,
-      modified: result.modifiedCount > 0
+      modified: true
     });
   } catch (error) {
     console.error('Error updating user:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    if (error.code === 'P2025') {
+      // Prisma record not found
+      res.status(404).json({ error: 'User not found' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 
-// Delete user (soft delete by adding deletedAt field)
-app.delete('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
+// Delete user (soft delete)
+app.delete('/api/users/:firebaseUid', async (req, res) => {
   try {
     const { firebaseUid } = req.params;
     
@@ -220,50 +172,54 @@ app.delete('/api/users/:firebaseUid', checkDbConnection, async (req, res) => {
       return res.status(400).json({ error: 'firebaseUid is required' });
     }
 
-    const result = await db.collection('users').updateOne(
-      { firebaseUid },
-      { $set: { deletedAt: new Date() } }
-    );
+    const deletedUser = await prisma.user.update({
+      where: { firebaseUid },
+      data: { deletedAt: new Date() }
+    });
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json({ message: 'User deleted successfully' });
+    res.json({ 
+      message: 'User deleted successfully',
+      user: deletedUser 
+    });
   } catch (error) {
     console.error('Error deleting user:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    
+    if (error.code === 'P2025') {
+      res.status(404).json({ error: 'User not found' });
+    } else {
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 });
 
-// Get all users (with pagination and filtering)
-app.get('/api/users', checkDbConnection, async (req, res) => {
+// Get all users (with pagination)
+app.get('/api/users', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     
-    // Build filter query
-    const filter = { deletedAt: { $exists: false } }; // Exclude deleted users
+    // Build where clause
+    const where = { deletedAt: null };
     
     if (req.query.email) {
-      filter.email = { $regex: req.query.email, $options: 'i' };
+      where.email = { contains: req.query.email, mode: 'insensitive' };
     }
     
     if (req.query.verified !== undefined) {
-      filter.emailVerified = req.query.verified === 'true';
+      where.emailVerified = req.query.verified === 'true';
     }
 
-    // Get total count
-    const total = await db.collection('users').countDocuments(filter);
-    
-    // Get users with pagination
-    const users = await db.collection('users')
-      .find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray();
+    // Get total count and users
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      })
+    ]);
 
     res.json({
       users,
@@ -281,15 +237,17 @@ app.get('/api/users', checkDbConnection, async (req, res) => {
 });
 
 // Sync status endpoint
-app.get('/api/sync/status', checkDbConnection, async (req, res) => {
+app.get('/api/sync/status', async (req, res) => {
   try {
-    const userCount = await db.collection('users').countDocuments({
-      deletedAt: { $exists: false }
+    const userCount = await prisma.user.count({
+      where: { deletedAt: null }
     });
     
-    const recentUsers = await db.collection('users').countDocuments({
-      lastLogin: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }, // Last 24 hours
-      deletedAt: { $exists: false }
+    const recentUsers = await prisma.user.count({
+      where: {
+        lastLogin: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        deletedAt: null
+      }
     });
 
     res.json({
@@ -302,6 +260,12 @@ app.get('/api/sync/status', checkDbConnection, async (req, res) => {
     console.error('Error getting sync status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });
 
 // Error handling middleware

@@ -1,11 +1,11 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from "react-native";
 
-const Mood = () => {
+
+const Journal = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Mood Tracking</Text>
-      <Text style={styles.subtitle}>Track your daily mood here</Text>
+      <Text style={styles.title}>Journals </Text>
+      <Text style={styles.subtitle}> your log of minds</Text>
     </View>
   );
 };
@@ -29,4 +29,6 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Mood;
+//export default Journal;
+
+

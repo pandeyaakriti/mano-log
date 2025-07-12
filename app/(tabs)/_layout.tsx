@@ -64,7 +64,7 @@ export default function TabsLayout() {
             tabBarIcon: ({ focused }) => (
               <Ionicons 
                 name={focused ? "happy" : "happy-outline"} 
-                size={24} 
+                size={10} 
                 color="#754491" 
               />
             ),
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     shadowColor: "#754491",
     shadowOffset: {
-      width: 0,
+      width: 4,
       height: 4,
     },
     shadowOpacity: 0.25,

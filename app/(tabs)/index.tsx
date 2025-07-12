@@ -15,6 +15,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 export default function Homepage() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [showReflectionCard, setShowReflectionCard] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
 
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
 
@@ -23,7 +25,7 @@ export default function Homepage() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.wrapper}>
           <ScrollView contentContainerStyle={styles.container}>
-            {/* Profile Header Section */}
+            {/* Profile Header */}
             <View style={styles.profileHeader}>
               <Image
                 source={require('../../assets/images/image.png')}
@@ -44,14 +46,14 @@ export default function Homepage() {
               />
               <Pressable
                 style={styles.reflectButton}
-                onPress={() => console.log('Reflect button pressed')}
+                onPress={() => setShowReflectionCard(true)}
               >
                 <Text style={styles.reflectButtonText}>Reflect Here</Text>
                 <Icon name="arrow-forward" size={20} color="#333" />
               </Pressable>
             </View>
 
-            {/* Mood Log Section */}
+            {/* Mood Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Daily Mood Log</Text>
               <View style={styles.moodRow}>
@@ -103,6 +105,74 @@ export default function Homepage() {
               <Icon name="settings-outline" size={24} color="#333" />
             </TouchableOpacity>
           </View>
+
+          {/* Reflection Modal */}
+          {showReflectionCard && (
+            <View style={styles.overlay}>
+              <View style={styles.card}>
+                <View style={styles.checkIconContainer}>
+                  <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
+                </View>
+                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+
+                <TextInput
+                  style={styles.cardTextInput}
+                  value={reflection}
+                  onChangeText={setReflection}
+                  placeholder="Type your reflection here..."
+                  multiline
+                  textAlign="center"
+                />
+
+                <TouchableOpacity
+                  style={styles.insightButton}
+                  onPress={() => {
+                    setShowReflectionCard(false);
+                    setShowAIInsights(true);
+                  }}
+                >
+                  <Text style={styles.insightButtonText}>Get insights</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowReflectionCard(false)}
+                >
+                  <Icon name="close-circle" size={28} color="#999" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* AI Insights Modal */}
+          {showAIInsights && (
+            <View style={styles.overlay}>
+              <View style={styles.card}>
+                <TouchableOpacity
+                  style={styles.checkIconContainer}
+                  onPress={() => setShowAIInsights(false)}
+                >
+                  <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
+                </TouchableOpacity>
+
+                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+
+                <View style={styles.aiCardBox}>
+                  <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
+                  <Text style={styles.aiCardText}>
+                    It sounds like you had a mixed day with some challenges but also successes. Youre showing resilience & how youre handling stress.
+                  </Text>
+                </View>
+
+                <View style={styles.aiCardBoxYellow}>
+                  <Text style={styles.aiCardTitle}>🌙 Wellness Tip</Text>
+                  <Text style={styles.aiCardText}>
+                    Consider taking 5 minutes for deep breathing exercises before bed tonight to help clear your mind and prepare for restful sleep.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -112,7 +182,7 @@ export default function Homepage() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
-    backgroundColor: '#E7B8D9', 
+    backgroundColor: '#E7B8D9',
   },
   safeArea: {
     flex: 1,
@@ -234,5 +304,99 @@ const styles = StyleSheet.create({
     color: '#666',
     lineHeight: 22,
     fontSize: 14,
+  },
+
+  // Modal overlay
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+
+  // Card
+  card: {
+    width: '85%',
+    backgroundColor: '#F8DDEB',
+    borderRadius: 25,
+    padding: 20,
+    paddingTop: 30,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  checkIconContainer: {
+    position: 'absolute',
+    top: -25,
+    backgroundColor: '#F8DDEB',
+    borderRadius: 25,
+    padding: 5,
+  },
+  cardDate: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  cardTextInput: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 10,
+    width: '100%',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  insightButton: {
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  insightButtonText: {
+    fontWeight: 'bold',
+    color: '#D16D96',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+
+  // AI Insight Styles
+  aiCardBox: {
+    backgroundColor: '#E1F8F4',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+    width: '100%',
+  },
+  aiCardBoxYellow: {
+    backgroundColor: '#FDF3D9',
+    borderRadius: 10,
+    padding: 15,
+    width: '100%',
+  },
+  aiCardTitle: {
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  aiCardText: {
+    fontSize: 13,
+    color: '#333',
+    lineHeight: 18,
   },
 });

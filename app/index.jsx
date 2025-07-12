@@ -1,12 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { useAuth } from '../context/AuthContext';
 
 export default function IndexScreen() {
-  const { user, loading } = useAuth();
+  const { user, loading, syncStatus, syncError, testBackendConnection } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -16,7 +16,24 @@ export default function IndexScreen() {
     }
   }, [user, loading, router]);
 
-  // Show loading screen while checking auth
+  // Test backend connection on mount (only in development)
+  useEffect(() => {
+    if (__DEV__ && !loading) {
+      testBackendConnection?.()
+        .then(() => console.log('✅ Backend connection verified'))
+        .catch(error => {
+          console.error('❌ Backend connection failed:', error);
+          if (__DEV__) {
+            Alert.alert(
+              'Backend Connection Issue',
+              `Cannot connect to backend: ${error.message}`,
+              [{ text: 'OK' }]
+            );
+          }
+        });
+    }
+  }, [loading, testBackendConnection]);
+
   if (loading) {
     return (
       <LinearGradient
@@ -24,11 +41,16 @@ export default function IndexScreen() {
         locations={[0.1, 0.3, 0.5]}
         style={[styles.container, { justifyContent: 'center' }]}>
         <Text style={styles.title}>Loading...</Text>
+        {syncStatus === 'syncing' && (
+          <Text style={styles.syncStatus}>Syncing user data...</Text>
+        )}
+        {syncError && (
+          <Text style={styles.syncError}>Sync Error: {syncError}</Text>
+        )}
       </LinearGradient>
     );
   }
 
-  // Show welcome screen for unauthenticated users
   return (
     <LinearGradient
       colors={['#FFDDEC', '#D5AFC7', '#C295BC']}
@@ -169,5 +191,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginHorizontal: 4,
+  },
+  syncStatus: {
+    fontFamily: 'Instrument',
+    color: '#8A2D6B',
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  syncError: {
+    fontFamily: 'Instrument',
+    color: '#FF6B6B',
+    fontSize: 12,
+    marginTop: 5,
+    textAlign: 'center',
   },
 });

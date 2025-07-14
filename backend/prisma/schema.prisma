@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+
+// User model
+
+model User {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  firebaseUid    String         @unique
+  email          String         @unique
+  username       String?        
+  displayName    String?
+  phone          String?       
+  emailVerified  Boolean?       
+  lastLogin      DateTime? 
+  photoURL       String?
+  timezone       String         @default("UTC")
+  journalEntries JournalEntry[]
+  moodEntries    MoodEntry[]
+  chatMessages   ChatMessage[]
+  moodSummaries  MoodSummary[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  
+  @@map("users")
+}
+
+
+// Journal entries
+
+model JournalEntry {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String       @db.ObjectId
+  textContent String
+  entryDate   DateTime     @default(now())
+  wordCount   Int          @default(0)
+  tags        String[]
+  aiInsight   AIInsight?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@index([userId, entryDate])
+  @@map("journal_entries")
+}
+
+
+// Mood entries
+
+model MoodEntry {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String     @db.ObjectId
+  moodType   MoodType
+  intensity  Int        @default(5)
+  note       String?
+  createdAt  DateTime   @default(now())
+  
+  @@index([userId, createdAt])
+  @@map("mood_entries")
+}
+
+
+// AI Insight for Journal
+
+model AIInsight {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  journal     JournalEntry  @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  journalId   String        @unique @db.ObjectId
+  summary     String
+  wellnessTip String
+  modelUsed   String        @default("gpt-3.5-turbo")
+  tokensUsed  Int           @default(0)
+  confidence  Float         @default(0.0)
+  createdAt   DateTime      @default(now())
+  
+  @@map("ai_insights")
+}
+
+
+// Chat messages with AI
+
+model ChatMessage {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String       @db.ObjectId
+  messageText String
+  sender      MessageRole
+  tokensUsed  Int?
+  source      String?       // e.g., "mood", "journal", "general"
+  timestamp   DateTime      @default(now())
+  
+  @@index([userId, timestamp])
+  @@map("chat_messages")
+}
+
+
+// Mood Summary
+
+model MoodSummary {
+  id              String      @id @default(auto()) @map("_id") @db.ObjectId
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String      @db.ObjectId
+  timePeriodType  PeriodType
+  periodStartDate DateTime
+  periodEndDate   DateTime
+  moodCounts      Json        // Example: { "HAPPY": 3, "SAD": 2, "ANXIOUS": 1 }
+  totalEntries    Int         @default(0)
+  averageMood     Float?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime?    @updatedAt
+  
+  @@unique([userId, timePeriodType, periodStartDate])
+  @@map("mood_summaries")
+}
+
+
+// ENUMS
+
+
+enum MoodType {
+  HAPPY
+  CALM
+  SAD
+  ANXIOUS
+  ANGRY
+  TIRED
+  EXCITED
+  NEUTRAL
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum PeriodType {
+  WEEK
+  MONTH
+}

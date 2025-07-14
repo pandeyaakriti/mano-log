@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "mano-log",
+    "slug": "mano-log",
+    "version": "1.0.0",
+    "package": "com.manolog.app",
+    "orientation": "portrait",
+    "icon": "./assets/images/logobgrm.png",
+    "scheme": "manolog",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logobgrm.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.aatmiyata.manolog"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/logobgrm.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logobgrm.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-dev-client",
+      "expo-web-browser",
+      "expo-font",
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "13b8c97f-3c87-46e4-9be7-d00763963b54"
+      }
+    }
+  }
+}

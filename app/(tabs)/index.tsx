@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -10,15 +9,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { journalAPI } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
-type User={
-  id:string;
+
+
+type User = {
+  id: string;
   displayName?: string;
   email?: string;
+  // add other properties as needed
 };
 
 export default function Homepage() {
@@ -28,6 +30,7 @@ export default function Homepage() {
   const [showAIInsights, setShowAIInsights] = useState(false);
 const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth() as { user: User | null };
+
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
   const handleReflectPress = async () => {
     // Validation
@@ -82,6 +85,7 @@ const [isLoading, setIsLoading] = useState(false);
     }
   };
 
+ 
   const getUserDisplayName = () => {
     if (user?.displayName) return user.displayName;
     if (user?.email) return user.email.split('@')[0];
@@ -104,39 +108,43 @@ const [isLoading, setIsLoading] = useState(false);
             </View>
 
             {/* Reflection Section */}
-            <View style={styles.reflectionSection}>
-              <Text style={styles.sectionTitle}>Daily Reflection</Text>
-              <TextInput
-                placeholder="How do you feel about your current emotions?"
-                value={reflection}
-                onChangeText={setReflection}
-                style={styles.textInput}
-                multiline
-                maxLength={1000}
-              editable={!isLoading}
-              <Text style= {styles.characterCount}>
-                {reflection.length}/1000 characters
-                </Text>
-              <Pressable
-                style={[
-                  styles.reflectButton,
-                  (isLoading || !reflection.trim()) && styles.reflectButtonDisabled
-                ]}
-                onPress={handleReflectPress}
-                disabled={isLoading || !reflection.trim()}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#333" size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.reflectButtonText}>
-                      {reflection.trim() ? 'Save Reflection' : 'Write Something First'}
-                    </Text>
-                    <Icon name="arrow-forward" size={20} color="#333" />
-                  </>
-                )}
-              </Pressable>
-            </View>
+         <View style={styles.reflectionSection}>
+  <Text style={styles.sectionTitle}>Daily Reflection</Text>
+
+  <TextInput
+    placeholder="How do you feel about your current emotions?"
+    value={reflection}
+    onChangeText={setReflection}
+    style={styles.textInput}
+    multiline
+    maxLength={1000}
+    editable={!isLoading}
+  />
+
+  <Text style={styles.characterCount}>
+    {reflection.length}/1000 characters
+  </Text>
+
+  <Pressable
+    style={[
+      styles.reflectButton,
+      (isLoading || !reflection.trim()) && styles.reflectButtonDisabled
+    ]}
+    onPress={handleReflectPress}
+    disabled={isLoading || !reflection.trim()}
+  >
+    <Text style={styles.reflectButtonText}>Reflect</Text>
+    <Icon name="arrow-forward" size={20} color="#333" />
+  </Pressable>
+
+  <Pressable
+    style={styles.reflectButton}
+    onPress={() => setShowReflectionCard(true)}
+  >
+    <Text style={styles.reflectButtonText}>Reflect Here</Text>
+    <Icon name="arrow-forward" size={20} color="#333" />
+  </Pressable>
+</View>
 
             {/* Mood Section */}
             <View style={styles.section}>
@@ -301,6 +309,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reflectionSection: {
+    fontSize: 12,
     marginBottom: 25,
     backgroundColor: '#F7F0F3',
     borderRadius: 15,
@@ -329,6 +338,8 @@ const styles = StyleSheet.create({
     padding: 10,
     textAlignVertical: 'top',
     minHeight: 60,
+    fontSize: 60,
+    color: '#333',
   },
   characterCount: {
     fontSize: 12,
@@ -337,6 +348,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 10,
   },
+ 
   moodRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -360,11 +372,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+    minHeight: 44,
   },
-  reflectButtonDisabled: {
-backgroundColor: '#E5E5E5',
-opacity: 0.6,
-  },
+reflectButtonDisabled: {
+  backgroundColor: '#E5E5E5',
+  opacity: 0.6,
+},
   reflectButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -496,3 +509,4 @@ opacity: 0.6,
     lineHeight: 18,
   },
 });
+

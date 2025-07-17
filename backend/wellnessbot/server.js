@@ -22,7 +22,7 @@ const chatHistory = {};
 class SimpleChatService {
   constructor() {
     this.baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    this.model = process.env.OLLAMA_MODEL || 'mistral';
+    this.model = process.env.OLLAMA_MODEL || 'gemma:2b';
   }
 
   async generateResponse(userMessage) {
@@ -244,9 +244,7 @@ server.on('error', (err) => {
     console.log('\n📝 Try these solutions:');
     console.log('1. Kill the process using the port:');
     console.log('   Windows: netstat -ano | findstr :3001');
-    console.log('   Mac/Linux: lsof -ti:3001 | xargs kill -9');
-    console.log('2. Use a different port: set PORT=3002 && node server.js');
-    console.log('3. Update your .env file with PORT=3002');
+   
     process.exit(1);
   } else {
     console.error('Server error:', err);

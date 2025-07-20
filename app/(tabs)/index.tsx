@@ -30,8 +30,7 @@ export default function Homepage() {
   const [showAIInsights, setShowAIInsights] = useState(false);
 const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth() as { user: User | null };
-  const [showReflectionCard, setShowReflectionCard] = useState(false);
-  const [showAIInsights, setShowAIInsights] = useState(false);
+
 
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
   const handleReflectPress = async () => {
@@ -280,7 +279,7 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
     backgroundColor: '#E7B8D9',
-    backgroundColor: '#E7B8D9',
+    
   },
   safeArea: {
     flex: 1,

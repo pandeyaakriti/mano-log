@@ -22,7 +22,7 @@ export default function index() {
       {/* Top semicircular gradient */}
       
       <LinearGradient
-        colors={['#d1f3b6ff', '#ffe7d1ff', '#cad8ccff']}
+        colors={['#ffaefeff', '#abeda7ff', '#f3d4a3ff']}
         style={styles.topCircle}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

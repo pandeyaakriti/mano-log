@@ -1,11 +1,12 @@
 require('dotenv').config({ path: '../.env' });
+const chatRouter = require('./wellnessbot/routes/chat');
 
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT_ROOT || 5000;
 
 const prisma = new PrismaClient();
 
@@ -28,6 +29,7 @@ testConnection();
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+app.use('/api/chat', chatRouter);
 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {

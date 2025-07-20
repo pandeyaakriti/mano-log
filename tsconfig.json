@@ -1,7 +1,7 @@
 {
-  "extends": "./node_modules/expo/tsconfig.base.json",
+ "extends": "./node_modules/expo/tsconfig.base.json",
+
   "compilerOptions": {
-    "jsx": "react-native",
     "strict": true,
     "paths": {
       "@/*": [
@@ -13,9 +13,6 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "app/(tabs)/trends.tsx",
-    "app/auth/signup.jsx",
-    "app/auth/login.jsx"
-  ]
+    "expo-env.d.ts"
+, "app/(tabs)/trends.tsx", "app/auth/signup.jsx", "app/auth/login.jsx"  ]
 }

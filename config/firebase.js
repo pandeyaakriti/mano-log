@@ -1,19 +1,35 @@
-// config/firebase.js (mocked for UI testing)
-export const auth = {
-  currentUser: null,
-  signInWithEmailAndPassword: async (email, password) => {
-    auth.currentUser = { email, uid: 'mock-uid', emailVerified: true };
-    return { user: auth.currentUser };
-  },
-  createUserWithEmailAndPassword: async (email, password) => {
-    auth.currentUser = { email, uid: 'mock-uid', emailVerified: false };
-    return { user: auth.currentUser };
-  },
-  signOut: async () => {
-    auth.currentUser = null;
-  },
-  onAuthStateChanged: (callback) => {
-    setTimeout(() => callback(auth.currentUser), 500); // Simulate async
-    return () => {}; // noop unsubscribe
-  },
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeApp } from 'firebase/app';
+import {
+  getAuth,
+  getReactNativePersistence,
+  initializeAuth
+} from 'firebase/auth';
+import { Platform } from 'react-native';
+
+const firebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
+
+const app = initializeApp(firebaseConfig);
+
+// Conditionally initialize auth
+let auth;
+
+if (Platform.OS === 'web') {
+  // Web: No special persistence
+  auth = getAuth(app);
+} else {
+  // Native: Use React Native persistence
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+}
+
+export { auth };
+export default app;

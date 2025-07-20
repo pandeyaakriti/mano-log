@@ -3,7 +3,7 @@
 // It also includes utility functions for making API requests and specific functions for interacting with user and journal
 // data.
 const API_BASE_URL = __DEV__ 
-  ? 'http://172.18.181.44:5000' // Development - put your local server URL here 
+  ? 'http://172.18.181.44:3000' // Development - put your local server URL here 
   : 'https://api.manolog.app'; // production url not deployed yet just example this is
 
 export const API_ENDPOINTS = {

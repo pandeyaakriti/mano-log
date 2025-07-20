@@ -48,13 +48,25 @@ export default function TabsLayout() {
             tabBarStyle: { display: 'none' },
           }}
         />
-
+        
         {/* Center Placeholder for Floating Button */}
         <Tabs.Screen
           name="placeholder"
           options={{
             tabBarButton: () => (
               <View style={styles.centerButtonPlaceholder} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="moodtrack"
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <Ionicons 
+                name={focused ? "happy" : "happy-outline"} 
+                size={10} 
+                color="#754491" 
+              />
             ),
           }}
         />
@@ -86,13 +98,13 @@ export default function TabsLayout() {
         />
       </Tabs>
 
-      {/* Floating + Journal Button */}
+      {/* Floating mood tracker button */}
       {!isChatScreen && (
         <TouchableOpacity
-          onPress={() => router.push("/journal")}
+          onPress={() => router.push("/(tabs)/moodtrack")}
           style={styles.floatingButton}
           activeOpacity={0.8}>
-          <Ionicons name="add" size={28} color="#754491" />
+          <Ionicons name={pathname.endsWith("/moodtrack") ? "happy" : "happy-outline"} size={28} color="#754491" />
         </TouchableOpacity>
       )}
     </>
@@ -117,7 +129,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     shadowColor: "#754491",
     shadowOffset: {
-      width: 0,
+      width: 4,
       height: 4,
     },
     shadowOpacity: 0.25,

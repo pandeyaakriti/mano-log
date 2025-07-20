@@ -1,8 +1,9 @@
-// Enhanced AuthContext.js with improved backend sync
+// Enhanced AuthContext.js with improved debugging and sync reliability
 
 import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle', 'syncing', 'success', 'error'
+  const [syncError, setSyncError] = useState(null); // Separate error for sync issues
 
   // Google Sign-In configuration
   const [, response, promptAsync] = Google.useAuthRequest({
@@ -58,7 +60,17 @@ export const AuthProvider = ({ children }) => {
         
         // Sync user on auth state change if user exists
         if (user) {
-          await saveUserToMongoDB(user);
+          console.log('User authenticated, attempting sync to Prisma...');
+          try {
+            await saveUserToMongoDB(user);
+            console.log('✅ User successfully synced to Prisma');
+          } catch (syncError) {
+            console.error('❌ Failed to sync user to Prisma:', syncError);
+            setSyncError(syncError.message);
+          }
+        } else {
+          setSyncStatus('idle');
+          setSyncError(null);
         }
       }, 
       (error) => {
@@ -103,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(null);
+      setSyncError(null);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       // saveUserToMongoDB is called in onAuthStateChanged
       return userCredential;
@@ -122,6 +135,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(null);
+      setSyncError(null);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       // Pass additional data for new user creation
       await saveUserToMongoDB(userCredential.user, additionalData, true);
@@ -142,6 +156,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(null);
+      setSyncError(null);
       await promptAsync();
     } catch (error) {
       console.error('Google sign-in prompt error:', error);
@@ -159,6 +174,7 @@ export const AuthProvider = ({ children }) => {
       }
       
       setError(null);
+      setSyncError(null);
       setSyncStatus('idle');
       await signOut(auth);
     } catch (error) {
@@ -177,33 +193,39 @@ export const AuthProvider = ({ children }) => {
 
     try {
       setSyncStatus('syncing');
+      setSyncError(null);
       
-      if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
-        console.warn('Backend URL not configured');
-        setSyncStatus('error');
-        return;
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      if (!backendUrl) {
+        throw new Error('Backend URL not configured in environment variables');
       }
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/${user.uid}`, {
+      console.log('Syncing user profile to:', `${backendUrl}/api/users/${user.uid}`);
+
+      const response = await fetch(`${backendUrl}/api/users/${user.uid}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...profileData,
-          lastUpdated: new Date()
+          lastUpdated: new Date().toISOString()
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
+      const result = await response.json();
       setSyncStatus('success');
-      console.log('User profile synced successfully');
+      console.log('✅ User profile synced successfully:', result);
+      return result;
     } catch (error) {
-      console.error('Error syncing user profile:', error);
+      console.error('❌ Error syncing user profile:', error);
       setSyncStatus('error');
+      setSyncError(error.message);
       throw error;
     }
   };
@@ -211,22 +233,29 @@ export const AuthProvider = ({ children }) => {
   // Function to get user data from MongoDB
   const getUserFromMongoDB = async (firebaseUid) => {
     try {
-      if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      if (!backendUrl) {
         console.warn('Backend URL not configured');
         return null;
       }
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users/${firebaseUid}`);
+      console.log('Fetching user from Prisma:', `${backendUrl}/api/users/${firebaseUid}`);
+
+      const response = await fetch(`${backendUrl}/api/users/${firebaseUid}`);
       
       if (response.ok) {
-        return await response.json();
+        const userData = await response.json();
+        console.log('✅ User fetched from Prisma:', userData.email);
+        return userData;
       } else if (response.status === 404) {
-        return null; // User not found in MongoDB
+        console.log('User not found in Prisma database');
+        return null;
       } else {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
     } catch (error) {
-      console.error('Error fetching user from MongoDB:', error);
+      console.error('❌ Error fetching user from Prisma:', error);
       return null;
     }
   };
@@ -253,38 +282,48 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Enhanced save user data to MongoDB with retry logic
+  // Enhanced save user data to MongoDB with better error handling
   const saveUserToMongoDB = async (firebaseUser, additionalData = {}, isNewUser = false) => {
+    setSyncStatus('syncing');
+    setSyncError(null);
+    
     try {
-      setSyncStatus('syncing');
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
       
-      // Only try to save to MongoDB if backend URL is set
-      if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
-        console.log('Backend URL not set, skipping MongoDB save');
-        setSyncStatus('idle');
-        return;
+      // Check if backend URL is configured
+      if (!backendUrl) {
+        throw new Error('EXPO_PUBLIC_BACKEND_URL is not configured in environment variables');
       }
+
+      console.log('🔄 Attempting to save user to Prisma...');
+      console.log('Backend URL:', backendUrl);
+      console.log('User email:', firebaseUser.email);
+      console.log('Is new user:', isNewUser);
 
       const userData = {
         firebaseUid: firebaseUser.uid,
         email: firebaseUser.email,
-        displayName: firebaseUser.displayName || additionalData.name,
-        photoURL: firebaseUser.photoURL,
+        displayName: firebaseUser.displayName || additionalData.name || null,
+        photoURL: firebaseUser.photoURL || null,
         phone: additionalData.phone || null,
         emailVerified: firebaseUser.emailVerified,
-        createdAt: isNewUser ? new Date() : undefined,
-        lastLogin: new Date(),
+        lastLogin: new Date().toISOString(),
         ...additionalData
       };
+
+      // Add createdAt only for new users
+      if (isNewUser) {
+        userData.createdAt = new Date().toISOString();
+      }
 
       // Remove undefined values
       Object.keys(userData).forEach(key => 
         userData[key] === undefined && delete userData[key]
       );
 
-      console.log('Attempting to save user to MongoDB:', userData.email);
+      console.log('Payload being sent:', JSON.stringify(userData, null, 2));
 
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/users`, {
+      const response = await fetch(`${backendUrl}/api/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -292,26 +331,75 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify(userData),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`Failed to save user data to MongoDB: ${errorText}`);
-        setSyncStatus('error');
-        // Don't throw error - user can still be authenticated
-      } else {
-        console.log('User data saved to MongoDB successfully');
-        setSyncStatus('success');
+        console.error('❌ Server response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const result = await response.json();
+      console.log('✅ User saved to Prisma successfully:', result);
+      
+      setSyncStatus('success');
+      return result;
     } catch (error) {
-      console.error('Error saving user to MongoDB:', error);
+      console.error('❌ Error saving user to Prisma:', error);
       setSyncStatus('error');
-      // Don't throw error here - user can still be authenticated even if MongoDB save fails
+      setSyncError(error.message);
+      
+      // For debugging: log the full error
+      console.error('Full error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Re-throw the error so calling code can handle it
+      throw error;
     }
   };
 
   // Function to retry failed sync operations
   const retrySync = async () => {
     if (user) {
-      await saveUserToMongoDB(user);
+      console.log('🔄 Retrying sync for user:', user.email);
+      try {
+        await saveUserToMongoDB(user);
+        console.log('✅ Retry sync successful');
+      } catch (error) {
+        console.error('❌ Retry sync failed:', error);
+        throw error;
+      }
+    } else {
+      throw new Error('No user to sync');
+    }
+  };
+
+  // Function to test backend connectivity
+  const testBackendConnection = async () => {
+    try {
+      const backendUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+      if (!backendUrl) {
+        throw new Error('Backend URL not configured');
+      }
+
+      console.log('Testing backend connection:', `${backendUrl}/health`);
+      
+      const response = await fetch(`${backendUrl}/health`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ Backend connection successful:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Backend connection failed:', error);
+      throw error;
     }
   };
 
@@ -324,10 +412,12 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     syncStatus,
+    syncError, // Separate sync error
     isAuthenticated: !!user,
     syncUserProfile,
     getUserFromMongoDB,
-    retrySync
+    retrySync,
+    testBackendConnection // New function to test connectivity
   };
 
   return (

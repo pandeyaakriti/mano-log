@@ -1,4 +1,3 @@
-// backend/server.js - Using Prisma instead of MongoDB driver
 require('dotenv').config({ path: '../.env' });
 
 const express = require('express');
@@ -8,14 +7,12 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Initialize Prisma
 const prisma = new PrismaClient();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Test database connection
+// Test DB connection
 async function testConnection() {
   try {
     await prisma.$connect();
@@ -25,97 +22,22 @@ async function testConnection() {
     process.exit(1);
   }
 }
-
 testConnection();
 
-// Health check endpoint
+// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Create or update user
-app.post('/api/users', async (req, res) => {
-  try {
-    const userData = req.body;
-    
-    // Validate required fields
-    if (!userData.firebaseUid || !userData.email) {
-      return res.status(400).json({ error: 'firebaseUid and email are required' });
-    }
-    
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { firebaseUid: userData.firebaseUid }
-    });
-
-    if (existingUser) {
-      // Update existing user
-      const updatedUser = await prisma.user.update({
-        where: { firebaseUid: userData.firebaseUid },
-        data: {
-          lastLogin: new Date(),
-          email: userData.email,
-          displayName: userData.displayName,
-          photoURL: userData.photoURL,
-          emailVerified: userData.emailVerified,
-          phone: userData.phone,
-        }
-      });
-      
-      res.json({ 
-        message: 'User login updated', 
-        user: updatedUser,
-        modified: true
-      });
-    } else {
-      // Create new user
-      const newUser = await prisma.user.create({
-        data: {
-          firebaseUid: userData.firebaseUid,
-          email: userData.email,
-          displayName: userData.displayName,
-          photoURL: userData.photoURL,
-          emailVerified: userData.emailVerified,
-          phone: userData.phone,
-          createdAt: new Date(),
-          lastLogin: new Date()
-        }
-      });
-      
-      res.status(201).json({ 
-        message: 'User created', 
-        user: newUser
-      });
-    }
-  } catch (error) {
-    console.error('Error handling user:', error);
-    
-    if (error.code === 'P2002') {
-      // Prisma unique constraint error
-      res.status(409).json({ error: 'User already exists' });
-    } else {
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  }
 });
 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {
   try {
     const { firebaseUid } = req.params;
-    
-    if (!firebaseUid) {
-      return res.status(400).json({ error: 'firebaseUid is required' });
-    }
+    if (!firebaseUid) return res.status(400).json({ error: 'firebaseUid is required' });
 
-    const user = await prisma.user.findUnique({
-      where: { firebaseUid }
-    });
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
+    const user = await prisma.user.findUnique({ where: { firebaseUid } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
     res.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -123,126 +45,124 @@ app.get('/api/users/:firebaseUid', async (req, res) => {
   }
 });
 
-// Update user profile
+// Create or update user (no username uniqueness check)
+app.post('/api/users', async (req, res) => {
+  try {
+    const userData = req.body;
+
+    if (!userData.firebaseUid || !userData.email) {
+      return res.status(400).json({ error: 'firebaseUid and email are required' });
+    }
+
+    // Upsert user without username uniqueness check
+    const user = await prisma.user.upsert({
+      where: { firebaseUid: userData.firebaseUid },
+      update: {
+        lastLogin: new Date(),
+        email: userData.email,
+        displayName: userData.displayName,
+        photoURL: userData.photoURL,
+        emailVerified: userData.emailVerified,
+        phone: userData.phone,
+        username: userData.username,
+      },
+      create: {
+        firebaseUid: userData.firebaseUid,
+        email: userData.email,
+        displayName: userData.displayName,
+        photoURL: userData.photoURL,
+        emailVerified: userData.emailVerified,
+        phone: userData.phone,
+        username: userData.username,
+        createdAt: new Date(),
+        lastLogin: new Date()
+      }
+    });
+
+    res.status(200).json({
+      message: 'User upserted successfully',
+      user,
+      modified: true
+    });
+
+  } catch (error) {
+    console.error('Error upserting user:', error);
+    // Handle Prisma unique constraint errors only for firebaseUid and email now
+    if (error.code === 'P2002') {
+      const target = error.meta?.target;
+      if (target.includes('firebaseUid')) {
+        return res.status(409).json({ error: 'User with this firebaseUid already exists' });
+      }
+      if (target.includes('email')) {
+        return res.status(409).json({ error: 'Email already in use' });
+      }
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update user partially by firebaseUid (no username uniqueness check)
 app.patch('/api/users/:firebaseUid', async (req, res) => {
   try {
     const { firebaseUid } = req.params;
     const updateData = req.body;
-    
-    if (!firebaseUid) {
-      return res.status(400).json({ error: 'firebaseUid is required' });
-    }
 
-    // Remove fields that shouldn't be updated
+    if (!firebaseUid) return res.status(400).json({ error: 'firebaseUid is required' });
+
+    // Clean fields not allowed to update
     delete updateData.firebaseUid;
     delete updateData.id;
     delete updateData.createdAt;
-    
-    // Add lastUpdated timestamp
-    updateData.lastUpdated = new Date();
+
+    updateData.updatedAt = new Date();
 
     const updatedUser = await prisma.user.update({
       where: { firebaseUid },
       data: updateData
     });
-    
-    res.json({ 
-      message: 'User updated successfully', 
+
+    res.json({
+      message: 'User updated successfully',
       user: updatedUser,
       modified: true
     });
   } catch (error) {
     console.error('Error updating user:', error);
-    
     if (error.code === 'P2025') {
-      // Prisma record not found
-      res.status(404).json({ error: 'User not found' });
-    } else {
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(404).json({ error: 'User not found' });
     }
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Delete user (soft delete)
+// Soft delete user by firebaseUid
 app.delete('/api/users/:firebaseUid', async (req, res) => {
   try {
     const { firebaseUid } = req.params;
-    
-    if (!firebaseUid) {
-      return res.status(400).json({ error: 'firebaseUid is required' });
-    }
+    if (!firebaseUid) return res.status(400).json({ error: 'firebaseUid is required' });
 
     const deletedUser = await prisma.user.update({
       where: { firebaseUid },
       data: { deletedAt: new Date() }
     });
 
-    res.json({ 
+    res.json({
       message: 'User deleted successfully',
-      user: deletedUser 
+      user: deletedUser
     });
   } catch (error) {
     console.error('Error deleting user:', error);
-    
     if (error.code === 'P2025') {
-      res.status(404).json({ error: 'User not found' });
-    } else {
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(404).json({ error: 'User not found' });
     }
-  }
-});
-
-// Get all users (with pagination)
-app.get('/api/users', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    
-    // Build where clause
-    const where = { deletedAt: null };
-    
-    if (req.query.email) {
-      where.email = { contains: req.query.email, mode: 'insensitive' };
-    }
-    
-    if (req.query.verified !== undefined) {
-      where.emailVerified = req.query.verified === 'true';
-    }
-
-    // Get total count and users
-    const [total, users] = await Promise.all([
-      prisma.user.count({ where }),
-      prisma.user.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit
-      })
-    ]);
-
-    res.json({
-      users,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Sync status endpoint
+// Sync status endpoint (example usage)
 app.get('/api/sync/status', async (req, res) => {
   try {
-    const userCount = await prisma.user.count({
-      where: { deletedAt: null }
-    });
-    
+    const userCount = await prisma.user.count({ where: { deletedAt: null } });
     const recentUsers = await prisma.user.count({
       where: {
         lastLogin: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
@@ -262,21 +182,21 @@ app.get('/api/sync/status', async (req, res) => {
   }
 });
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
 });
 
-// Error handling middleware
+// Error handler middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
 });
 
 app.listen(PORT, () => {

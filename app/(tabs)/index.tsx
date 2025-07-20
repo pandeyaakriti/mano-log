@@ -30,6 +30,8 @@ export default function Homepage() {
   const [showAIInsights, setShowAIInsights] = useState(false);
 const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth() as { user: User | null };
+  const [showReflectionCard, setShowReflectionCard] = useState(false);
+  const [showAIInsights, setShowAIInsights] = useState(false);
 
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
   const handleReflectPress = async () => {
@@ -99,6 +101,7 @@ const [isLoading, setIsLoading] = useState(false);
         <View style={styles.wrapper}>
           <ScrollView contentContainerStyle={styles.container}>
             {/* Profile Header */}
+            {/* Profile Header */}
             <View style={styles.profileHeader}>
               <Image
                 source={require('../../assets/images/image.png')}
@@ -146,6 +149,7 @@ const [isLoading, setIsLoading] = useState(false);
   </Pressable>
 </View>
 
+            {/* Mood Section */}
             {/* Mood Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Daily Mood Log</Text>
@@ -275,6 +279,7 @@ const [isLoading, setIsLoading] = useState(false);
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
+    backgroundColor: '#E7B8D9',
     backgroundColor: '#E7B8D9',
   },
   safeArea: {

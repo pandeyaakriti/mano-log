@@ -146,9 +146,11 @@ export default function AiChat({ navigation }: AiChatProps) {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton} onPress={() => navigation?.goBack()}>
-          <Icon name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+      <TouchableOpacity style={styles.headerButton} onPress={() => navigation?.navigate('index')}
+>
+  <Icon name="arrow-back" size={24} color="#fff" />
+</TouchableOpacity>
+
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Wellness Bot</Text>
           <ConnectionStatus />

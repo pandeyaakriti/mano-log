@@ -23,6 +23,10 @@ class OllamaService {
     this.lastHealthCheck = null;
     this.healthCheckInterval = 60000; // 1 minute
     
+    // Track conversation context to avoid repetitive questions
+    this.conversationContext = new Map();
+    this.contextTimeout = 300000; // 5 minutes
+    
     // Emotion detection patterns
     this.emotionPatterns = {
       sad: ['sad', 'down', 'depressed', 'low', 'blue', 'upset', 'crying', 'tearful', 'heartbroken', 'miserable'],
@@ -35,6 +39,87 @@ class OllamaService {
       grateful: ['grateful', 'thankful', 'blessed', 'appreciative', 'lucky'],
       proud: ['proud', 'accomplished', 'successful', 'achieved', 'confident']
     };
+
+    // Solution patterns for each emotion
+    this.emotionSolutions = {
+      sad: [
+        'Try gentle movement like a short walk or stretching to help shift your energy',
+        'Sometimes talking about what\'s on your heart can help - would you like to share more, or would you prefer to just be heard?',
+        'Consider doing something nurturing for yourself - maybe make a warm drink or wrap up in a cozy blanket',
+        'Write down your feelings without censoring them - sometimes getting them out of your head helps',
+        'Reach out to someone who cares about you, even if it\'s just to say hello'
+      ],
+      anxious: [
+        'Try the 5-4-3-2-1 grounding technique: name 5 things you see, 4 you hear, 3 you touch, 2 you smell, 1 you taste',
+        'Practice box breathing: 4 counts in, hold 4, out 4, hold 4',
+        'Focus on what you can control right now, not what you can\'t',
+        'Try progressive muscle relaxation - tense and release each muscle group',
+        'Step outside for fresh air or change your environment'
+      ],
+      angry: [
+        'Take slow, deep breaths to activate your body\'s calm response',
+        'Try physical movement - walk, stretch, or do jumping jacks to release tension',
+        'Write down your thoughts without censoring to get them out of your head',
+        'Use the STOP technique: Stop, Take a breath, Observe, Proceed mindfully',
+        'Count to 10 or take a brief timeout before responding'
+      ],
+      tired: [
+        'Consider a 10-20 minute power nap if possible',
+        'Stay hydrated - fatigue often includes dehydration',
+        'Try gentle movement or stretching to boost energy naturally',
+        'Prioritize your most important tasks and let go of the rest today',
+        'Plan for earlier sleep tonight and create a calming bedtime routine'
+      ],
+      lonely: [
+        'Reach out to one person - even a simple text saying hello',
+        'Consider joining an online community or local group with shared interests',
+        'Practice self-compassion - treat yourself with the kindness you\'d show a friend',
+        'Try volunteering, which connects you with others while helping',
+        'Spend time in public spaces like cafes or parks to feel connected to others'
+      ],
+      confused: [
+        'Write down what you know vs. what you\'re unsure about',
+        'Break the situation into smaller, clearer pieces',
+        'Talk it through with someone you trust for a fresh perspective',
+        'Take a step back and revisit this when you feel clearer',
+        'Focus on the next small step rather than the whole picture'
+      ]
+    };
+  }
+
+  // Track conversation context to avoid repetitive responses
+  updateConversationContext(userId, emotion, hasAskedCause) {
+    const now = Date.now();
+    if (!this.conversationContext.has(userId)) {
+      this.conversationContext.set(userId, {
+        emotions: new Map(),
+        timestamp: now
+      });
+    }
+
+    const context = this.conversationContext.get(userId);
+    if (!context.emotions.has(emotion)) {
+      context.emotions.set(emotion, {
+        causesAsked: hasAskedCause,
+        solutionsGiven: [],
+        count: 1,
+        firstMentioned: now
+      });
+    } else {
+      const emotionData = context.emotions.get(emotion);
+      emotionData.count += 1;
+      if (hasAskedCause) emotionData.causesAsked = true;
+    }
+    
+    context.timestamp = now;
+  }
+
+  getConversationContext(userId, emotion) {
+    const context = this.conversationContext.get(userId);
+    if (!context || Date.now() - context.timestamp > this.contextTimeout) {
+      return null;
+    }
+    return context.emotions.get(emotion) || null;
   }
 
   // Enhanced health check with caching
@@ -126,7 +211,14 @@ class OllamaService {
     return Math.min(intensity, 5); // Cap at 5
   }
 
-  // Enhanced wellness response generation with emotion-aware follow-ups
+  // Get a random solution for an emotion
+  getRandomSolution(emotion) {
+    const solutions = this.emotionSolutions[emotion];
+    if (!solutions || solutions.length === 0) return null;
+    return solutions[Math.floor(Math.random() * solutions.length)];
+  }
+
+  // Enhanced wellness response generation with better solution/question balance
   async generateResponse(userMessage, context = {}) {
     const cacheKey = this.generateCacheKey(userMessage, context);
     
@@ -145,12 +237,17 @@ class OllamaService {
     // Detect emotions in the user's message
     const detectedEmotions = this.detectEmotions(userMessage);
     const primaryEmotion = detectedEmotions[0];
+    
+    // Get conversation context to avoid repetitive questions
+    const userId = context.userId || 'default';
+    const emotionContext = primaryEmotion ? 
+      this.getConversationContext(userId, primaryEmotion.emotion) : null;
 
     let lastError;
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        const systemPrompt = this.buildSystemPrompt(context, detectedEmotions);
+        const systemPrompt = this.buildSystemPrompt(context, detectedEmotions, emotionContext);
         const fullPrompt = `${systemPrompt}\n\nUser: ${userMessage}\n\nAssistant:`;
 
         const response = await this.client.post('/api/generate', {
@@ -167,6 +264,13 @@ class OllamaService {
         });
 
         const cleanedResponse = this.cleanResponse(response.data.response);
+        
+        // Update conversation context
+        if (primaryEmotion) {
+          this.updateConversationContext(userId, primaryEmotion.emotion, 
+            cleanedResponse.toLowerCase().includes('what') && cleanedResponse.includes('?'));
+        }
+        
         const result = {
           success: true,
           response: cleanedResponse,
@@ -199,72 +303,100 @@ class OllamaService {
     return {
       success: false,
       error: this.sanitizeError(lastError),
-      fallbackResponse: this.getContextualFallbackResponse(userMessage, context, detectedEmotions),
+      fallbackResponse: this.getContextualFallbackResponse(userMessage, context, detectedEmotions, emotionContext),
       detectedEmotions: detectedEmotions,
       attemptsRade: this.maxRetries,
       generatedAt: new Date().toISOString()
     };
   }
 
-  // Enhanced system prompt with emotion-aware guidance
-  buildSystemPrompt(context, detectedEmotions = []) {
+  // Check if user response is vague/dismissive
+  isVagueResponse(message) {
+    const vaguePatterns = [
+      'nothing much', 'not much', 'nothing really', 'not sure',
+      'just because', 'just sad', 'just tired', 'just angry',
+      'i dont know', "i don't know", 'dunno', 'no reason',
+      'everything', 'life', 'just life', 'just feeling',
+      'cant explain', "can't explain", 'hard to say',
+      'just am', 'just do', 'idk', 'whatever'
+    ];
+    
+    return vaguePatterns.some(pattern => 
+      message.includes(pattern) || 
+      message === 'nothing' || 
+      message === 'everything' ||
+      message.length < 15 // Very short responses often indicate reluctance to elaborate
+    );
+  }
+
+  // Enhanced system prompt with better solution/question balance
+  buildSystemPrompt(context, detectedEmotions = [], emotionContext = null) {
     const basePrompt = `You are a warm, empathetic wellness companion. Your role is to:
 
 CORE BEHAVIOR:
 - Provide genuine, heartfelt responses that feel like talking to a caring friend
 - Listen actively and acknowledge the user's emotions with empathy
 - When they say thank you, respond naturally with "You're welcome! I'm here for you" or similar
-- Offer gentle, practical wellness tips and coping strategies
+- ALWAYS offer practical, actionable wellness tips and coping strategies
 - Maintain a warm, supportive, non-judgmental tone
-- try giving them solutions also
-- when they ask you questions, suggest them answers that are related to their emotions
+- Focus on giving helpful solutions, not just asking questions
 
-EMOTION-FOCUSED RESPONSES:
-- When someone expresses an emotion (sad, anxious, happy, etc.), ALWAYS ask what made them feel that way
-- Use phrases like: "What's been making you feel [emotion]?" or "Can you tell me what led to feeling [emotion]?"
-- Show genuine curiosity about their experience and validate their feelings
-- Help them explore the root causes of their emotions in a supportive way
--Suggest practical self-care strategies based on their emotional state 
+RESPONSE STRATEGY:
+- PRIORITIZE giving practical solutions and coping strategies
+- When user gives vague responses like "nothing much" or "just sad", immediately offer helpful solutions instead of probing further
+- Only ask follow-up questions about emotions if the user seems open to sharing details
+- Provide 1-2 concrete, actionable suggestions in every response
+- Balance empathy with practical help
+- Recognize when someone doesn't want to elaborate and pivot to supportive solutions
+
+SOLUTION-FOCUSED RESPONSES:
+- Always include at least one specific technique they can try right now
+- Suggest breathing exercises, grounding techniques, physical movement, or mindfulness practices
+- Give practical self-care strategies based on their emotional state
+- Encourage healthy habits like rest, hydration, nature connection, or social support
+- Make suggestions concrete and immediate, not vague
 
 RESPONSE STYLE:
-- dont sound stiff
 - Keep responses conversational and concise (2-4 sentences typically)
 - Use natural, flowing language - avoid lists or clinical-sounding advice
 - Show genuine care and understanding in your words
-- Be encouraging but realistic, never dismissive of their feelings
+- Be encouraging and solution-oriented, never dismissive
 - Match their emotional energy appropriately
 
 WELLNESS FOCUS:
-- Suggest practical techniques: deep breathing, mindfulness, gentle movement, journaling
-- Encourage healthy habits like good sleep, nature connection, and social support
-- Help them identify positive coping strategies and personal strengths
-- Normalize difficult emotions while promoting healthy processing
+- Suggest specific techniques: "Try taking 5 deep breaths, counting to 4 on each inhale and 6 on exhales"
+- Encourage immediate actions: "Step outside for a few minutes" or "Write down three things going well"
+- Help them identify what they can do right now to feel a bit better
+- Normalize difficult emotions while promoting healthy coping
 
 BOUNDARIES:
 - Never provide medical diagnoses or specific medical advice
 - Encourage professional help when signs of serious distress appear
-- Avoid discussing politics, religion, or controversial topics
 - Don't suggest harmful behaviors or dismiss serious mental health concerns
 - If someone mentions self-harm or crisis, gently suggest professional resources
 
-Remember: You're a supportive friend focused on emotional wellness and practical self-care strategies. ask follow-up questions about what's causing their emotions and provide solutions too.`;
+Remember: Focus on being a helpful friend who gives practical advice, not a therapist who only asks questions.`;
 
-    // Add emotion-specific guidance
+    // Add emotion-specific guidance with solution focus
     let contextualPrompt = basePrompt;
     
     if (detectedEmotions.length > 0) {
       const primaryEmotion = detectedEmotions[0];
-      contextualPrompt += `\n\nEMOTION CONTEXT: The user seems to be feeling ${primaryEmotion.emotion} (intensity: ${primaryEmotion.intensity.toFixed(1)}). Make sure to:
-1. Acknowledge this emotion with empathy
-2. Ask what specifically made them feel this way
-3. Provide emotion-appropriate support and coping suggestions`;
+      const shouldAskCause = !emotionContext || !emotionContext.causesAsked;
+      
+      contextualPrompt += `\n\nEMOTION CONTEXT: The user seems to be feeling ${primaryEmotion.emotion} (intensity: ${primaryEmotion.intensity.toFixed(1)}). 
+${shouldAskCause ? 
+  'You may gently ask what made them feel this way, but PRIORITIZE giving them a practical solution first.' : 
+  'Focus on providing practical solutions - you\'ve already explored the causes with them.'
+}
+Give them a specific coping technique for ${primaryEmotion.emotion} emotions.`;
     }
     
     if (context.recentMoods && context.recentMoods.length > 0) {
       const moodContext = context.recentMoods
         .map(mood => `${mood.moodType} (${mood.intensity}/10)`)
         .join(', ');
-      contextualPrompt += `\n\nMOOD HISTORY: The user's recent mood patterns show: ${moodContext}. Use this to provide more personalized support.`;
+      contextualPrompt += `\n\nMOOD HISTORY: Recent patterns: ${moodContext}. Use this to provide more personalized support.`;
     }
 
     if (context.timeOfDay) {
@@ -290,71 +422,63 @@ Remember: You're a supportive friend focused on emotional wellness and practical
     }
   }
 
-  // Enhanced fallback responses with emotion-aware follow-ups
-  getContextualFallbackResponse(userMessage, context = {}, detectedEmotions = []) {
+  // Enhanced fallback responses with solution focus
+  getContextualFallbackResponse(userMessage, context = {}, detectedEmotions = [], emotionContext = null) {
     const lowerMessage = userMessage.toLowerCase();
-    const recentMoods = context.recentMoods || [];
     const primaryEmotion = detectedEmotions[0];
+    const shouldAskCause = primaryEmotion && (!emotionContext || !emotionContext.causesAsked);
     
-    // Emotion-specific responses with follow-up questions
+    // Check for vague responses that indicate user doesn't want to elaborate
+    const isVagueResponse = this.isVagueResponse(lowerMessage);
+    
+    // Emotion-specific responses with solutions first, questions optional
     if (primaryEmotion) {
-      switch (primaryEmotion.emotion) {
-        case 'sad':
-          return `I can hear the sadness in your words, and I want you to know that it's completely okay to feel this way. Your feelings are valid. Can you tell me what's been making you feel so sad lately? Sometimes talking about what's weighing on your heart can help.`;
-        
-        case 'anxious':
-          return `It sounds like anxiety is really weighing on you right now, and that can feel so overwhelming. You're not alone in this feeling. What's been triggering these anxious feelings for you? Understanding what's behind the worry can sometimes help us find ways to cope.`;
-        
-        case 'angry':
-          return `I can sense the anger and frustration you're experiencing. Those are such intense emotions, and it makes sense that you'd want to express them. What happened that made you feel this angry? Let's talk through what's got you feeling this way.`;
-        
-        case 'happy':
-          return `It's wonderful to hear such positivity from you! Your happiness is really coming through, and it brightens my day. What's been bringing you this joy and happiness? I'd love to celebrate these good moments with you.`;
-        
-        case 'tired':
-          return `Exhaustion can make everything feel so much harder, and I hear how drained you're feeling. It takes a lot to reach out when you're this tired. What's been wearing you down lately? Is it physical tiredness, emotional exhaustion, or maybe both?`;
-        
-        case 'lonely':
-          return `Loneliness can feel so heavy and isolating. I'm really glad you reached out and shared this with me - that takes courage. What's been making you feel so alone lately? Sometimes understanding the source can help us think about ways to reconnect.`;
-        
-        case 'confused':
-          return `Feeling confused and uncertain can be really unsettling. It's like you're trying to navigate without a clear path forward. What's been causing this confusion for you? Sometimes talking through what's unclear can help bring some clarity.`;
-        
-        case 'grateful':
-          return `It's so beautiful to hear gratitude in your words! Gratitude is such a powerful emotion for our wellbeing. What's been making you feel so grateful and thankful lately? I'd love to hear about the positive things in your life.`;
-        
-        case 'proud':
-          return `I can feel the pride and accomplishment in your message, and that's wonderful! It's so important to recognize and celebrate our achievements. What have you accomplished that's making you feel so proud? I'd love to celebrate this moment with you.`;
-        
-        default:
-          return `I can sense some strong emotions in what you're sharing with me. Your feelings matter, and I'm here to listen and support you. Can you tell me more about what's been making you feel this way? Understanding what's behind these emotions can help us work through them together.`;
+      const solution = this.getRandomSolution(primaryEmotion.emotion);
+      const emotionName = primaryEmotion.emotion;
+      
+      let response = `I can hear the ${emotionName} in your words, and that's completely valid. `;
+      
+      // If it's a vague response or we've already asked about causes, focus on solutions
+      if (isVagueResponse || !shouldAskCause) {
+        if (solution) {
+          response += `Here's something that might help: ${solution}. `;
+        }
+        response += `Sometimes ${emotionName} feelings just need acknowledgment and gentle self-care.`;
+      } else {
+        // First time mentioning emotion - ask about cause but also offer solution
+        if (solution) {
+          response += `Here's something that might help right now: ${solution}. `;
+        }
+        response += `If you'd like to share, what's been contributing to these ${emotionName} feelings?`;
       }
+      
+      return response;
     }
     
-    // Keyword-based responses with follow-up questions
+    // Keyword-based responses with solution focus
     const stressKeywords = ['stress', 'stressed', 'pressure', 'overwhelmed'];
     const workKeywords = ['work', 'job', 'boss', 'colleague', 'office', 'career', 'meeting'];
     const sleepKeywords = ['sleep', 'insomnia', 'can\'t sleep'];
     const relationshipKeywords = ['relationship', 'partner', 'friend', 'family', 'argument', 'conflict'];
 
     if (stressKeywords.some(keyword => lowerMessage.includes(keyword))) {
-      return "Stress can feel so overwhelming sometimes, like everything is piling up at once. You're not alone in feeling this way. What's been the biggest source of stress for you lately? Let's talk about what's been building up this pressure.";
+      return "Stress can feel overwhelming, but you're not alone in this. Try this right now: take 5 slow, deep breaths, making your exhale longer than your inhale. This activates your body's calm response and can provide immediate relief.";
     }
     
     if (workKeywords.some(keyword => lowerMessage.includes(keyword))) {
-      return "Work challenges can really impact how we feel throughout the day and beyond. It sounds like something at work is weighing on your mind. What's been happening in your work situation that's affecting you? I'm here to listen.";
+      return "Work stress can really weigh on us. Here's something that might help: take a 2-minute break to step away from your workspace, do some gentle neck rolls, and remind yourself of one thing that went well today. Sometimes small resets make a big difference.";
     }
 
     if (sleepKeywords.some(keyword => lowerMessage.includes(keyword))) {
-      return "Sleep struggles can make everything feel more difficult and overwhelming. You're dealing with something that affects so many of us. What's been making it hard for you to get good rest? Is it your mind racing, physical discomfort, or something else?";
+      return "Sleep struggles are so frustrating. Try this tonight: put away screens 30 minutes before bed, do some gentle stretches, and focus on relaxing each part of your body from your toes up to your head. Creating a calm routine signals to your body that it's time to rest.";
     }
 
     if (relationshipKeywords.some(keyword => lowerMessage.includes(keyword))) {
-      return "Relationships can bring us so much joy and sometimes real challenges too. It sounds like there's something important happening with someone in your life. What's been going on that's affecting you? I'm here to listen without judgment.";
+      return "Relationship challenges can stir up so many emotions. Before your next interaction, try taking a few minutes to think about what outcome you really want, then approach the conversation from a place of curiosity rather than defensiveness. This often helps communication flow better.";
     }
     
-    // Default empathetic response with follow-up
-    return "I'm really glad you reached out to share what's on your mind. Sometimes just having someone listen can help, and I'm here for you. Can you tell me more about what's been on your heart lately? What's been making you feel the way you do right now?";
+    // Default empathetic response with practical suggestion
+    return "I'm glad you reached out - that takes courage. Right now, try this simple grounding technique: notice 5 things you can see around you, 4 things you can hear, and 3 things you can physically feel (like your feet on the floor). This can help bring you into the present moment when things feel overwhelming.";
   }
 
   // Enhanced journal insight generation
@@ -374,7 +498,8 @@ Remember: You're a supportive friend focused on emotional wellness and practical
       let emotionContext = '';
       if (detectedEmotions.length > 0) {
         const primaryEmotion = detectedEmotions[0];
-        emotionContext = `\n\nNote: The journal entry seems to express ${primaryEmotion.emotion} emotions. Address this sensitively and ask gentle follow-up questions about what might be causing these feelings.`;
+        const solution = this.getRandomSolution(primaryEmotion.emotion);
+        emotionContext = `\n\nNote: The journal entry expresses ${primaryEmotion.emotion} emotions. Acknowledge this sensitively and provide a practical wellness tip: ${solution || 'something supportive they can do for themselves'}.`;
       }
 
       const prompt = `Read this journal entry with care and empathy, then provide supportive insight:
@@ -383,10 +508,10 @@ Remember: You're a supportive friend focused on emotional wellness and practical
 
 Please respond with:
 1. A brief, compassionate reflection on what you notice (1-2 sentences)
-2. One practical, gentle wellness suggestion based on what they've shared (1-2 sentences)
-3. If emotions are present, gently ask what might be contributing to these feelings
+2. One specific, practical wellness suggestion they can try today (1-2 sentences)
+3. Brief encouragement about their self-reflection practice
 
-Keep your response warm, supportive, and focused on their emotional wellbeing. Avoid being clinical or overly analytical.${emotionContext}`;
+Keep your response warm, supportive, and solution-focused rather than just asking questions.${emotionContext}`;
 
       const response = await this.client.post('/api/generate', {
         model: this.model,
@@ -420,36 +545,33 @@ Keep your response warm, supportive, and focused on their emotional wellbeing. A
     }
   }
 
-  // Enhanced journal fallback with emotion awareness
+  // Enhanced journal fallback with solution focus
   getJournalFallbackInsight(journalText, detectedEmotions = []) {
-    const lowerText = journalText.toLowerCase();
     const primaryEmotion = detectedEmotions[0];
     
     if (primaryEmotion) {
-      switch (primaryEmotion.emotion) {
-        case 'sad':
-          return "I can sense some sadness in your writing, and I want you to know that it's okay to feel this way. Journaling about difficult emotions can be really healing. What do you think has been contributing to these sad feelings lately?";
-        
-        case 'grateful':
-          return "I notice you're reflecting on gratitude - that's such a powerful practice for wellbeing! It's beautiful to see you acknowledging the positive things in your life. What's been inspiring this sense of gratitude for you?";
-        
-        case 'anxious':
-          return "It sounds like you're processing some worry or anxiety through your writing. Journaling can be such a helpful way to work through anxious thoughts. What's been on your mind that's causing these feelings?";
-        
-        default:
-          return `I can sense some ${primaryEmotion.emotion} emotions in your reflection. Thank you for being honest about your feelings - that takes courage. What do you think has been influencing how you're feeling lately?`;
+      const solution = this.getRandomSolution(primaryEmotion.emotion);
+      let response = `I can sense some ${primaryEmotion.emotion} emotions in your writing, and it's really meaningful that you're taking time to process these feelings through journaling. `;
+      
+      if (solution) {
+        response += `Here's something that might help: ${solution}. `;
       }
+      
+      response += `Your self-awareness and commitment to reflection shows real strength.`;
+      return response;
     }
     
+    const lowerText = journalText.toLowerCase();
+    
     if (lowerText.includes('challenge') || lowerText.includes('difficult') || lowerText.includes('struggle')) {
-      return "Thank you for honestly sharing about the challenges you're facing. Writing about difficulties can help process emotions and often reveals your own strength and resilience. What's been the most challenging part of what you're going through?";
+      return "Thank you for honestly sharing about the challenges you're facing. Try being as kind to yourself as you would be to a good friend going through the same thing. Your willingness to reflect on difficult experiences shows resilience and self-compassion.";
     }
     
     if (lowerText.includes('goal') || lowerText.includes('plan') || lowerText.includes('want to')) {
-      return "I can see you're thinking about your goals and aspirations. Journaling about your intentions is a wonderful way to clarify what matters to you and take meaningful steps forward. What's motivating these goals for you?";
+      return "I can see you're thinking about your goals and aspirations - that's wonderful self-direction. Try writing down just one small step you can take toward these goals this week. Breaking things down makes them feel more achievable and builds momentum.";
     }
     
-    return "Thank you for taking time to reflect and write. Journaling is such a valuable practice for understanding yourself better and processing your experiences. What prompted you to write about this today? Keep nurturing this healthy habit.";
+    return "Thank you for taking time to reflect and write. Here's a simple way to build on this practice: each time you journal, try ending with one thing you're grateful for, even if it's small. This helps balance processing challenges with recognizing positives in your life.";
   }
 
   // Utility methods
@@ -502,10 +624,21 @@ Keep your response warm, supportive, and focused on their emotional wellbeing. A
     }
   }
 
+  // Clean up conversation context
+  cleanupConversationContext() {
+    const now = Date.now();
+    for (const [userId, context] of this.conversationContext.entries()) {
+      if (now - context.timestamp > this.contextTimeout) {
+        this.conversationContext.delete(userId);
+      }
+    }
+  }
+
   // Get service statistics
   getServiceStats() {
     return {
       cacheSize: this.responseCache.size,
+      conversationContexts: this.conversationContext.size,
       lastHealthCheck: this.lastHealthCheck?.timestamp || null,
       isHealthy: this.lastHealthCheck?.result?.isRunning || false,
       modelConfigured: this.model,

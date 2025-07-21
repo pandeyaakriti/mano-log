@@ -145,7 +145,7 @@ export default function index() {
     setSavedReflection(reflection);  // Save before clearing
     setShowReflectionCard(true); 
     setShowSuccessModal(true);
-    //Alert.alert('Success', 'Reflection saved successfully!');
+    Alert.alert('Success', 'Reflection saved successfully!');
     setReflection('');
     setSelectedMood(null);
     
@@ -171,10 +171,6 @@ export default function index() {
     console.log(' Reflect button pressed');
     await saveReflection();
     
-    // Only show reflection card if save was successful (not loading anymore)
-    // if (!isLoading && reflection.trim()) {
-    //   setShowReflectionCard(true);
-    //}
   };
 
   return (

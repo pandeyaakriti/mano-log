@@ -7,7 +7,6 @@ class OllamaService {
     this.model = process.env.OLLAMA_MODEL || 'gemma:2b';
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 30000, // 30 seconds timeout
       headers: {
         'Content-Type': 'application/json',
       },

@@ -1,4 +1,5 @@
 import { Ionicons as Icon } from '@expo/vector-icons';
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -30,6 +31,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL
 const USER_ID = '6876a91ad13eac66af0cc683'; // You can make this dynamic based on actual user
 
 export default function AiChat({ navigation }: AiChatProps) {
+   const router = useRouter(); 
   const [messages, setMessages] = useState<Message[]>([
     {
       text: 'Welcome to Wellness Chat. How are you feeling today?',
@@ -144,17 +146,16 @@ export default function AiChat({ navigation }: AiChatProps) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-      <TouchableOpacity style={styles.headerButton} onPress={() => navigation?.navigate('index')}
->
-  <Icon name="arrow-back" size={24} color="#fff" />
-</TouchableOpacity>
+        <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+          <Icon name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Wellness Bot</Text>
           <ConnectionStatus />
         </View>
+
         <TouchableOpacity style={styles.headerButton} onPress={checkBackendConnection}>
           <Icon name="refresh" size={24} color="#fff" />
         </TouchableOpacity>

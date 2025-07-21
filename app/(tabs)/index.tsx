@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   SafeAreaView,
   ScrollView,
@@ -10,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useAuth } from '../../context/AuthContext';
+
 type User = {
   mongoId?: string;         // From MongoDB (_id mapped to mongoId)
   firebaseUid?: string;     // From Firebase
@@ -22,73 +25,156 @@ type User = {
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };
+
 export default function index() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [showReflectionCard, setShowReflectionCard] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth() as { user: User | null };
+  const [savedReflection, setSavedReflection] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
 
-  const handleReflectPress = async () => {
-    // Validation
-    if (!reflection.trim()) {
-      Alert.alert('Empty Reflection', 'Please write something before reflecting.');
-      return;
-    }
-
-    if (!user?.id) {
-      Alert.alert('Authentication Error', 'Please sign in to save your reflection.');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Save journal entry
-      await journalAPI.create(user.id, reflection.trim());
-      
-      // Show success message
-      Alert.alert(
-        'Reflection Saved! 🌟',
-        'Your thoughts have been safely stored in your journal.',
-        [
-          {
-            text: 'Continue Writing',
-            style: 'default',
-          },
-          {
-            text: 'View Journal',
-            onPress: () => {
-              // Navigate to journal/settings screen
-              // You'll need to implement this based on your navigation setup
-              console.log('Navigate to journal');
-            },
-          },
-        ]
-      );
-
-      // Clear the input
-      setReflection('');
-      
-    } catch (error) {
-      console.error('Error saving reflection:', error);
-      Alert.alert(
-        'Save Failed',
-        'We couldn\'t save your reflection right now. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Debug user object on component mount and when user changes
+  useEffect(() => {
+    console.log(' Current user object:', user);
+    console.log(' User firebaseUid:', user?.firebaseUid);
+    console.log(' User uid:', user?.uid);
+    console.log(' User id:', user?.id);
+  }, [user]);
 
   const getUserDisplayName = () => {
     if (user?.displayName) return user.displayName;
     if (user?.email) return user.email.split('@')[0];
     return 'friend';
   };
-  const greeting = `Hey ${getUserDisplayName()},\nhow are you doing today?`;
+
+  const getUserProfileImage = () => {
+    if (user?.photoURL) { 
+      return { uri: user.photoURL };
+    }
+    return require('../../assets/images/default-profile.jpg'); // Default profile image
+  };
+
+  // Get the user's Firebase UID from multiple possible sources
+  const getUserFirebaseUid = () => {
+    return user?.firebaseUid || user?.uid || user?.id;
+  };
+
+  const saveReflection = async () => {
+    console.log(' Debug - saveReflection called');
+    console.log(' Debug - reflection state:', reflection);
+    console.log(' Debug - reflection length:', reflection.length);
+    console.log(' Debug - user object:', user);
+    
+    const firebaseUid = getUserFirebaseUid();
+    console.log(' Debug - resolved firebaseUid:', firebaseUid);
+
+    // Check if user is authenticated
+    if (!user) {
+      console.log(' No user found');
+      Alert.alert('Authentication Error', 'User not found. Please login again.');
+      return;
+    }
+
+    // Check if we have a Firebase UID
+    if (!firebaseUid) {
+      console.log(' No firebaseUid found in user object');
+      console.log(' Available user properties:', Object.keys(user));
+      Alert.alert('Authentication Error', 'User ID not found. Please logout and login again.');
+      return;
+    }
+
+    // Check if reflection is not empty
+    if (!reflection.trim()) {
+      console.log(' Reflection is empty or only whitespace');
+      Alert.alert('Validation Error', 'Please write a reflection before saving.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log(' Saving reflection for user:', firebaseUid);
+      
+      const payload = {
+        firebaseUid: firebaseUid,
+        textContent: reflection.trim(),
+      }; 
+      console.log(' Payload:', payload);
+
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal`;
+      console.log(' API URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify(payload),
+      });
+    console.log(' Response status:', response.status);
+    console.log(' Response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(' Error response:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+
+      Alert.alert(
+        'Save Failed', 
+        `Failed to save reflection: ${errorData.error || 'Unknown error'}`
+      );
+      return;
+    }
+
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    console.log('Journal saved successfully:', data);
+    setSavedReflection(reflection);  // Save before clearing
+    setShowReflectionCard(true); 
+    setShowSuccessModal(true);
+    //Alert.alert('Success', 'Reflection saved successfully!');
+    setReflection('');
+    setSelectedMood(null);
+    
+
+    } catch (err) {
+    console.error(' API error:', err);
+    
+    // More specific error handling
+    let errorMessage = 'Error saving reflection. Please try again.';
+    
+    if ((err as Error).message === 'Network request failed') {
+      errorMessage = 'Network error: Cannot connect to server. Please check your internet connection and ensure the server is running.';
+    } else if ((err as Error).name === 'TypeError') {
+      errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+    }
+    Alert.alert('Network Error, check internet connection', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReflectPress = async () => {
+    console.log(' Reflect button pressed');
+    await saveReflection();
+    
+    // Only show reflection card if save was successful (not loading anymore)
+    // if (!isLoading && reflection.trim()) {
+    //   setShowReflectionCard(true);
+    //}
+  };
 
   return (
     <View style={styles.gradient}>
@@ -98,10 +184,12 @@ export default function index() {
             {/* Profile Header */}
             <View style={styles.profileHeader}>
               <Image
-                source= {getUserProfileImage()}
+                source={getUserProfileImage()}
                 style={styles.profileImage}
               />
-              <Text style={styles.greeting}>Hey, {getUserDisplayName()}, {"\n"}How are you doing today?</Text>
+              <Text style={styles.greeting}>
+                Hey, {getUserDisplayName()}, {"\n"}How are you doing today?
+              </Text>
             </View>
 
             {/* Reflection Section */}
@@ -110,15 +198,25 @@ export default function index() {
               <TextInput
                 placeholder="How do you feel about your current emotions?"
                 value={reflection}
-                onChangeText={setReflection}
+                onChangeText={(text) => {
+                  setReflection(text);
+                }}
                 style={styles.textInput}
                 multiline
+                numberOfLines={4}
               />
               <Pressable
-                style={styles.reflectButton}
-                onPress={() => setShowReflectionCard(true)}
+                style={[
+                  styles.reflectButton, 
+                  isLoading && { opacity: 0.6 },
+                  !reflection.trim() && { opacity: 0.5 }
+                ]}
+                onPress={handleReflectPress}
+                disabled={isLoading || !reflection.trim()}
               >
-                <Text style={styles.reflectButtonText}>Reflect Here</Text>
+                <Text style={styles.reflectButtonText}>
+                  {isLoading ? 'Saving...' : 'Reflect Here'}
+                </Text>
                 <Icon name="arrow-forward" size={20} color="#333" />
               </Pressable>
             </View>
@@ -183,16 +281,14 @@ export default function index() {
                 <View style={styles.checkIconContainer}>
                   <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
                 </View>
-                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+                <Text style={styles.cardDate}>
+                  {new Date().getDate()}{"\n"}
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+                </Text>
 
-                <TextInput
-                  style={styles.cardTextInput}
-                  value={reflection}
-                  onChangeText={setReflection}
-                  placeholder="Type your reflection here..."
-                  multiline
-                  textAlign="center"
-                />
+                <View style={styles.cardTextDisplay}>
+                  <Text style={styles.cardDisplayText}>{savedReflection}</Text>
+                </View>
 
                 <TouchableOpacity
                   style={styles.insightButton}
@@ -225,7 +321,10 @@ export default function index() {
                   <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
                 </TouchableOpacity>
 
-                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+                <Text style={styles.cardDate}>
+                  {new Date().getDate()}{"\n"}
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+                </Text>
 
                 <View style={styles.aiCardBox}>
                   <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
@@ -312,9 +411,11 @@ const styles = StyleSheet.create({
   textInput: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 10,
+    padding: 15,
     textAlignVertical: 'top',
-    minHeight: 60,
+    minHeight: 100,
+    fontSize: 16,
+    lineHeight: 22,
   },
   moodRow: {
     flexDirection: 'row',
@@ -331,9 +432,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   reflectButton: {
-    marginTop: 10,
+    marginTop: 15,
     backgroundColor: '#CFD9B4',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 10,
     alignItems: 'center',

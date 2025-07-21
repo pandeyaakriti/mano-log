@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -293,7 +294,7 @@ export default function index() {
                 <TouchableOpacity
                   style={styles.insightButton}
                   onPress={() => {
-                    setShowReflectionCard(true);
+                    setShowReflectionCard(false);
                     setShowAIInsights(true);
                   }}
                 >

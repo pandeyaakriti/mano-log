@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Image,
-  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useAuth } from '../../context/AuthContext';
 type User = {
   mongoId?: string;         // From MongoDB (_id mapped to mongoId)
   firebaseUid?: string;     // From Firebase
@@ -29,21 +27,69 @@ export default function index() {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [showReflectionCard, setShowReflectionCard] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth() as { user: User | null };
+
   const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
 
-const getUserDisplayName = () => {
+  const handleReflectPress = async () => {
+    // Validation
+    if (!reflection.trim()) {
+      Alert.alert('Empty Reflection', 'Please write something before reflecting.');
+      return;
+    }
+
+    if (!user?.id) {
+      Alert.alert('Authentication Error', 'Please sign in to save your reflection.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Save journal entry
+      await journalAPI.create(user.id, reflection.trim());
+      
+      // Show success message
+      Alert.alert(
+        'Reflection Saved! 🌟',
+        'Your thoughts have been safely stored in your journal.',
+        [
+          {
+            text: 'Continue Writing',
+            style: 'default',
+          },
+          {
+            text: 'View Journal',
+            onPress: () => {
+              // Navigate to journal/settings screen
+              // You'll need to implement this based on your navigation setup
+              console.log('Navigate to journal');
+            },
+          },
+        ]
+      );
+
+      // Clear the input
+      setReflection('');
+      
+    } catch (error) {
+      console.error('Error saving reflection:', error);
+      Alert.alert(
+        'Save Failed',
+        'We couldn\'t save your reflection right now. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getUserDisplayName = () => {
     if (user?.displayName) return user.displayName;
     if (user?.email) return user.email.split('@')[0];
     return 'friend';
   };
-  const getUserProfileImage = () => {
-    if (user?.photoURL) { 
-    return { uri: user.photoURL};}
-    return require('../../assets/images/default-profile.jpg'); // Default profile image
-    };
-    const greeting = `\n Hey ${getUserDisplayName()},\nhow are you doing today?`;
+  const greeting = `Hey ${getUserDisplayName()},\nhow are you doing today?`;
+
   return (
     <View style={styles.gradient}>
       <SafeAreaView style={styles.safeArea}>
@@ -151,7 +197,7 @@ const getUserDisplayName = () => {
                 <TouchableOpacity
                   style={styles.insightButton}
                   onPress={() => {
-                    setShowReflectionCard(false);
+                    setShowReflectionCard(true);
                     setShowAIInsights(true);
                   }}
                 >
@@ -160,7 +206,7 @@ const getUserDisplayName = () => {
 
                 <TouchableOpacity
                   style={styles.closeButton}
-                  onPress={() => setShowReflectionCard(false)}
+                  onPress={() => setShowReflectionCard(true)}
                 >
                   <Icon name="close-circle" size={28} color="#999" />
                 </TouchableOpacity>
@@ -184,6 +230,7 @@ const getUserDisplayName = () => {
                 <View style={styles.aiCardBox}>
                   <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
                   <Text style={styles.aiCardText}>
+                    It sounds like you had a mixed day with some challenges but also successes. You're showing resilience & how you're handling stress.
                     It sounds like you had a mixed day with some challenges but also successes. You're showing resilience & how you're handling stress.
                   </Text>
                 </View>
@@ -365,6 +412,19 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  cardTextDisplay: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    marginBottom: 20,
+    minHeight: 80,
+  },
+  cardDisplayText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
   cardTextInput: {
     fontSize: 14,

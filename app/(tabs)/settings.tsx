@@ -8,8 +8,23 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
+import { useAuth } from '../../context/AuthContext';
+type User = {
+  mongoId?: string;         // From MongoDB (_id mapped to mongoId)
+  firebaseUid?: string;     // From Firebase
+  uid?: string;             // Fallback for Firebase UID
+  id?: string;              // General fallback
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  emailVerified?: boolean;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+
+};
+
 
 // Define the journal entry type
 interface JournalEntry {
@@ -64,14 +79,25 @@ const journals: JournalItem[] = [
   }
 ];
 
-export default function Index() {
+export default function settings() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+   const { user } = useAuth() as { user: User | null };
 
   const openReflection = (entry: JournalEntry) => {
     setSelectedEntry(entry);
     setModalVisible(true);
   };
+  const getUserDisplayName = (): string => {
+    if (user?.displayName) return user.displayName;
+    if (user?.email) return user.email.split('@')[0];
+    return 'friend';
+  };
+  const getUserProfileImage = () => {
+    if (user?.photoURL) { 
+    return { uri: user.photoURL};}
+    return require('../../assets/images/default-profile.jpg'); // Default profile image
+    };
 
   return (
     <LinearGradient
@@ -82,11 +108,12 @@ export default function Index() {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.profileSection}>
           <Image
-            source={require('../../assets/images/Manolog.png')}
+            source={ getUserProfileImage()}
             style={styles.profileImage}
           />
-          <Text style={styles.name}>Subhechha Karki</Text>
-          <Text style={styles.email}>subhechhakarkee@gmail.com</Text>
+          <Text style={styles.name}> {getUserDisplayName()}  </Text>
+          <Text style={styles.email}>{user?.email}</Text>
+          
           <View style={styles.journalBtn}>
             <Text style={styles.journalBtnText}>My Journals</Text>
           </View>

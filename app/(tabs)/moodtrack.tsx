@@ -2,7 +2,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-const Insights = () => {
+const moodtrack= () => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Insights</Text>
@@ -30,4 +30,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Insights;
+export default moodtrack;

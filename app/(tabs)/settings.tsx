@@ -201,6 +201,31 @@ export default function settings() {
     fetchJournalEntries(true);
   };
 
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoggingOut(true);
+            try {
+              await logout();
+              // Navigation will be handled by the auth context/router
+            } catch (error) {
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+              console.error('Logout error:', error);
+            } finally {
+              setIsLoggingOut(false);
+            }},
+        }, ]
+    ); };
 
 
   return (
@@ -237,6 +262,22 @@ export default function settings() {
                 style={isRefreshing ? styles.refreshIconSpinning : null}
               />
             </TouchableOpacity>
+            <TouchableOpacity 
+                style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
+                onPress={handleLogout}
+                disabled={isLoading || isRefreshing || isLoggingOut}
+                activeOpacity={0.7}
+              >
+                {isLoggingOut ? (
+                  <ActivityIndicator size={18} color="#999" />
+                ) : (
+                  <Icon 
+                    name="log-out-outline" 
+                    size={18} 
+                    color="#D64545" 
+                  />
+                )}
+              </TouchableOpacity>
           </View>
         </View>
 
@@ -437,7 +478,24 @@ const styles = StyleSheet.create({
   refreshButtonDisabled: {
     opacity: 0.6,
   },
-
+  logoutButton: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(214, 69, 69, 0.2)',
+  },
+  logoutButtonDisabled: {
+    opacity: 0.6,
+  },
   refreshIconSpinning: {
     //  add animation here if front end guys are mehenati enough
   },
@@ -671,3 +729,6 @@ const styles = StyleSheet.create({
   },
 });
 
+function logout() {
+  router.push ('/auth/login');
+}

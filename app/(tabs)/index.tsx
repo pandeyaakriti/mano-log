@@ -37,7 +37,7 @@ export default function index() {
   const [savedReflection, setSavedReflection] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-  const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
+  //const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
 
   // Debug user object on component mount and when user changes
   useEffect(() => {
@@ -218,7 +218,7 @@ export default function index() {
               </Pressable>
             </View>
 
-            {/* Mood Section */}
+            {/* Mood Section
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Daily Mood Log</Text>
               <View style={styles.moodRow}>
@@ -235,6 +235,35 @@ export default function index() {
                   </TouchableOpacity>
                 ))}
                </View>
+            </View> */}
+
+            {/* Streak and Mood Section (Figma-style) */}
+        <View style={styles.streakMoodContainer}>
+  <View style={styles.streakColumn}>
+    <View style={styles.streakCard}>
+      <View style={styles.streakCardRow}>
+        <Text style={styles.streakLabel}>Longest Streak</Text>
+        <Text style={styles.streakValue}>
+          <Text style={{ fontSize: 23, fontWeight: 'bold' }}>43</Text>
+          <Text style={{ marginLeft: 2 }}>✨</Text>
+        </Text>
+      </View>
+    </View>
+
+    <View style={styles.streakCard}>
+      <View style={styles.streakCardRow}>
+        <Text style={styles.streakLabel}>Current Streak</Text>
+        <Text style={styles.streakValue}>
+          <Text style={{ fontSize: 23, fontWeight: 'bold' }}>27</Text>
+          <Text style={{ marginLeft: 2 }}>💥</Text>
+        </Text>
+      </View>
+    </View>
+  </View>
+              <View style={styles.moodCard}>
+                <Text style={styles.moodLabel}>Average Mood this week</Text>
+                <Text style={styles.moodEmoji}>😟</Text>
+              </View>
             </View>
 
             {/* Affirmation Section */}
@@ -413,20 +442,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
-  moodRow: {
+  // New Streak + Mood Section
+  streakMoodContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 25,
   },
-  moodButton: {
-    padding: 10,
-    borderRadius: 10,
+  streakColumn: {
+    flex: 1,
+    justifyContent: 'space-between',
   },
-  moodSelected: {
-    backgroundColor: '#fff',
+  streakCard: {
+    backgroundColor: '#F7FCFF',
+    borderRadius: 15,
+   paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    height: 70,
+    justifyContent: 'center',
+    width: 170,
   },
-  moodText: {
-    fontSize: 24,
+  streakCardRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+},
+  streakLabel: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
   },
+  streakValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  moodCard: {
+    backgroundColor: '#FFF9E5',
+    borderRadius: 15,
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+    width: 170,
+    fontWeight: 'bold',
+    minHeight: 130,
+    
+  },
+  moodLabel: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+     fontWeight: 'bold',
+  },
+  moodEmoji: {
+    fontSize: 40,
+  },
+  // moodRow: {
+  //   flexDirection: 'row',
+  //   justifyContent: 'space-between',
+  // },
+  // moodButton: {
+  //   padding: 10,
+  //   borderRadius: 10,
+  // },
+  // moodSelected: {
+  //   backgroundColor: '#fff',
+  // },
+  // moodText: {
+  //   fontSize: 24,
+  // },
   reflectButton: {
     marginTop: 15,
     backgroundColor: '#CFD9B4',

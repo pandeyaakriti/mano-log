@@ -1,3 +1,4 @@
+//app/index.jsx
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useRouter } from 'expo-router';
 import { useEffect } from 'react';

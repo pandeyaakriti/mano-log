@@ -1,17 +1,30 @@
+//backend/server.js
 require('dotenv').config({ path: '../.env' });
-const chatRouter = require('./wellnessbot/routes/chat');
-
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
 const cors = require('cors');
+const { PrismaClient } = require('@prisma/client');
+const chatRouter = require('./wellnessbot/routes/chat');
+const journalRoutes = require('./journal/journal.routes');
 
 const app = express();
 const PORT = process.env.PORT_ROOT || 5000;
-
 const prisma = new PrismaClient();
 
-app.use(cors());
+app.use(cors({
+   origin: '*', // Be more specific in production
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Accept']
+}));
 app.use(express.json());
+
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('Body:', req.body);
+  }
+  next();
+});
 
 // Test DB connection
 async function testConnection() {
@@ -27,9 +40,16 @@ testConnection();
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.json({ status: 'OK', timestamp: new Date().toISOString(), service:'mano-log' });
 });
+
 app.use('/api/chat', chatRouter);
+app.use ('/api/journal', journalRoutes);
+
+//check if journal routes is working
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working!', timestamp: new Date() });
+});
 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {
@@ -193,6 +213,12 @@ app.use((req, res) => {
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
   res.status(500).json({ error: 'Internal server error' });
+});
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(` Main server running on port ${PORT}`);
+  console.log(` Health check: http://localhost:${PORT}/health`);
+  console.log(` Journal API: http://localhost:${PORT}/api/journal`);
 });
 
 // Graceful shutdown

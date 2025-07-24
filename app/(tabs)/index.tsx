@@ -1,20 +1,177 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useAuth } from '../../context/AuthContext';
 
-export default function Homepage() {
+type User = {
+  mongoId?: string;         // From MongoDB (_id mapped to mongoId)
+  firebaseUid?: string;     // From Firebase
+  uid?: string;             // Fallback for Firebase UID
+  id?: string;              // General fallback
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  emailVerified?: boolean;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
+
+export default function index() {
   const [reflection, setReflection] = useState('');
+  const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [showReflectionCard, setShowReflectionCard] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth() as { user: User | null };
+  const [savedReflection, setSavedReflection] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
+
+  // Debug user object on component mount and when user changes
+  useEffect(() => {
+    console.log(' Current user object:', user);
+    console.log(' User firebaseUid:', user?.firebaseUid);
+    console.log(' User uid:', user?.uid);
+    console.log(' User id:', user?.id);
+  }, [user]);
+
+  const getUserDisplayName = () => {
+    if (user?.displayName) return user.displayName;
+    if (user?.email) return user.email.split('@')[0];
+    return 'friend';
+  };
+
+  const getUserProfileImage = () => {
+    if (user?.photoURL) { 
+      return { uri: user.photoURL };
+    }
+    return require('../../assets/images/default-profile.jpg'); // Default profile image
+  };
+
+  // Get the user's Firebase UID from multiple possible sources
+  const getUserFirebaseUid = () => {
+    return user?.firebaseUid || user?.uid || user?.id;
+  };
+
+  const saveReflection = async () => {
+    console.log(' Debug - saveReflection called');
+    console.log(' Debug - reflection state:', reflection);
+    console.log(' Debug - reflection length:', reflection.length);
+    console.log(' Debug - user object:', user);
+    
+    const firebaseUid = getUserFirebaseUid();
+    console.log(' Debug - resolved firebaseUid:', firebaseUid);
+
+    // Check if user is authenticated
+    if (!user) {
+      console.log(' No user found');
+      Alert.alert('Authentication Error', 'User not found. Please login again.');
+      return;
+    }
+
+    // Check if we have a Firebase UID
+    if (!firebaseUid) {
+      console.log(' No firebaseUid found in user object');
+      console.log(' Available user properties:', Object.keys(user));
+      Alert.alert('Authentication Error', 'User ID not found. Please logout and login again.');
+      return;
+    }
+
+    // Check if reflection is not empty
+    if (!reflection.trim()) {
+      console.log(' Reflection is empty or only whitespace');
+      Alert.alert('Validation Error', 'Please write a reflection before saving.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log(' Saving reflection for user:', firebaseUid);
+      
+      const payload = {
+        firebaseUid: firebaseUid,
+        textContent: reflection.trim(),
+      }; 
+      console.log(' Payload:', payload);
+
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal`;
+      console.log(' API URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify(payload),
+      });
+    console.log(' Response status:', response.status);
+    console.log(' Response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(' Error response:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+
+      Alert.alert(
+        'Save Failed', 
+        `Failed to save reflection: ${errorData.error || 'Unknown error'}`
+      );
+      return;
+    }
+
+    const data = await response.json();
+    console.log('Response data:', data);
+
+    console.log('Journal saved successfully:', data);
+    setSavedReflection(reflection);  // Save before clearing
+    setShowReflectionCard(true); 
+    setShowSuccessModal(true);
+    Alert.alert('Success', 'Reflection saved successfully!');
+    setReflection('');
+    setSelectedMood(null);
+    
+
+    } catch (err) {
+    console.error(' API error:', err);
+    
+    // More specific error handling
+    let errorMessage = 'Error saving reflection. Please try again.';
+    
+    if ((err as Error).message === 'Network request failed') {
+      errorMessage = 'Network error: Cannot connect to server. Please check your internet connection and ensure the server is running.';
+    } else if ((err as Error).name === 'TypeError') {
+      errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+    }
+    Alert.alert('Network Error, check internet connection', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReflectPress = async () => {
+    console.log(' Reflect button pressed');
+    await saveReflection();
+    
+  };
 
   return (
     <View style={styles.gradient}>
@@ -24,49 +181,60 @@ export default function Homepage() {
             {/* Profile Header */}
             <View style={styles.profileHeader}>
               <Image
-                source={require('../../assets/images/image.png')}
+                source={getUserProfileImage()}
                 style={styles.profileImage}
               />
-              <Text style={styles.greeting}>Hey kreetee,{"\n"}how are you doing today?</Text>
+              <Text style={styles.greeting}>
+                Hey, {getUserDisplayName()}, {"\n"}How are you doing today?
+              </Text>
             </View>
 
-            {/* Daily Reflection Section (Figma-style) */}
-            <View style={styles.reflectionCard}>
+            {/* Reflection Section */}
+            <View style={styles.reflectionSection}>
               <Text style={styles.sectionTitle}>Daily Reflection</Text>
-              <Text style={styles.questionText}>How do you feel about your current emotions?</Text>
-              <View style={styles.inputWithArrow}>
-                <TextInput
-                  placeholder="reflect here..."
-                  placeholderTextColor="#7A7A7A"
-                  value={reflection}
-                  onChangeText={setReflection}
-                  style={styles.reflectionInput}
-                />
-                <TouchableOpacity
-                  style={styles.arrowButton}
-                  onPress={() => setShowReflectionCard(true)}
-                >
-                  <Icon name="arrow-forward" size={20} color="#333" />
-                </TouchableOpacity>
-              </View>
+              <TextInput
+                placeholder="How do you feel about your current emotions?"
+                value={reflection}
+                onChangeText={(text) => {
+                  setReflection(text);
+                }}
+                style={styles.textInput}
+                multiline
+                numberOfLines={4}
+              />
+              <Pressable
+                style={[
+                  styles.reflectButton, 
+                  isLoading && { opacity: 0.6 },
+                  !reflection.trim() && { opacity: 0.5 }
+                ]}
+                onPress={handleReflectPress}
+                disabled={isLoading || !reflection.trim()}
+              >
+                <Text style={styles.reflectButtonText}>
+                  {isLoading ? 'Saving...' : 'Reflect Here'}
+                </Text>
+                <Icon name="arrow-forward" size={20} color="#333" />
+              </Pressable>
             </View>
 
-            {/* Streak and Mood Section (Figma-style) */}
-            <View style={styles.streakMoodContainer}>
-              <View style={styles.streakColumn}>
-                <View style={styles.streakCard}>
-                  <Text style={styles.streakLabel}>Longest Streak</Text>
-                  <Text style={styles.streakValue}>43 <Text>✨</Text></Text>
-                </View>
-                <View style={styles.streakCard}>
-                  <Text style={styles.streakLabel}>Current Streak</Text>
-                  <Text style={styles.streakValue}>27 <Text>💥</Text></Text>
-                </View>
-              </View>
-              <View style={styles.moodCard}>
-                <Text style={styles.moodLabel}>Average Mood this week</Text>
-                <Text style={styles.moodEmoji}>😟</Text>
-              </View>
+            {/* Mood Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Daily Mood Log</Text>
+              <View style={styles.moodRow}>
+                {moods.map((mood, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.moodButton,
+                      selectedMood === mood && styles.moodSelected,
+                    ]}
+                    onPress={() => setSelectedMood(mood)}
+                  >
+                    <Text style={styles.moodText}>{mood}</Text>
+                  </TouchableOpacity>
+                ))}
+               </View>
             </View>
 
             {/* Affirmation Section */}
@@ -83,17 +251,21 @@ export default function Homepage() {
             <TouchableOpacity onPress={() => console.log('Home')}>
               <Icon name="home-outline" size={24} color="#333" />
             </TouchableOpacity>
+
             <TouchableOpacity onPress={() => console.log('Chat')}>
               <Icon name="chatbubble-outline" size={24} color="#333" />
             </TouchableOpacity>
+
             <TouchableOpacity onPress={() => console.log('Add')}>
               <View style={styles.addButton}>
                 <Icon name="add" size={24} color="#F4CBE4" />
               </View>
             </TouchableOpacity>
+
             <TouchableOpacity onPress={() => console.log('Mood Insights')}>
               <Icon name="analytics-outline" size={24} color="#333" />
             </TouchableOpacity>
+
             <TouchableOpacity onPress={() => console.log('Settings')}>
               <Icon name="settings-outline" size={24} color="#333" />
             </TouchableOpacity>
@@ -106,15 +278,15 @@ export default function Homepage() {
                 <View style={styles.checkIconContainer}>
                   <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
                 </View>
-                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
-                <TextInput
-                  style={styles.cardTextInput}
-                  value={reflection}
-                  onChangeText={setReflection}
-                  placeholder="Type your reflection here..."
-                  multiline
-                  textAlign="center"
-                />
+                <Text style={styles.cardDate}>
+                  {new Date().getDate()}{"\n"}
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+                </Text>
+
+                <View style={styles.cardTextDisplay}>
+                  <Text style={styles.cardDisplayText}>{savedReflection}</Text>
+                </View>
+
                 <TouchableOpacity
                   style={styles.insightButton}
                   onPress={() => {
@@ -124,9 +296,10 @@ export default function Homepage() {
                 >
                   <Text style={styles.insightButtonText}>Get insights</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.closeButton}
-                  onPress={() => setShowReflectionCard(false)}
+                  onPress={() => setShowReflectionCard(true)}
                 >
                   <Icon name="close-circle" size={28} color="#999" />
                 </TouchableOpacity>
@@ -144,13 +317,19 @@ export default function Homepage() {
                 >
                   <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
                 </TouchableOpacity>
-                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+
+                <Text style={styles.cardDate}>
+                  {new Date().getDate()}{"\n"}
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+                </Text>
+
                 <View style={styles.aiCardBox}>
                   <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
                   <Text style={styles.aiCardText}>
                     It sounds like you had a mixed day with some challenges but also successes. You're showing resilience & how you're handling stress.
                   </Text>
                 </View>
+
                 <View style={styles.aiCardBoxYellow}>
                   <Text style={styles.aiCardTitle}>🌙 Wellness Tip</Text>
                   <Text style={styles.aiCardText}>
@@ -202,85 +381,18 @@ const styles = StyleSheet.create({
     color: '#fff',
     flex: 1,
   },
-
-  // New Daily Reflection (Figma-style)
-  reflectionCard: {
+  reflectionSection: {
+    marginBottom: 25,
     backgroundColor: '#F7F0F3',
     borderRadius: 15,
     padding: 15,
+  },
+  section: {
     marginBottom: 25,
-  },
-  questionText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 10,
-  },
-  inputWithArrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E3F0C1',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-  },
-  reflectionInput: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-    fontSize: 14,
-    color: '#333',
-  },
-  arrowButton: {
-    padding: 6,
-    backgroundColor: '#E3F0C1',
-    borderRadius: 8,
-    marginLeft: 5,
-  },
-
-  // New Streak + Mood Section
-  streakMoodContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-  },
-  streakColumn: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  streakCard: {
-    backgroundColor: '#FCEBF5',
+    backgroundColor: '#FDEFF4',
     borderRadius: 15,
-    padding: 12,
-    marginBottom: 10,
+    padding: 15,
   },
-  streakLabel: {
-    fontSize: 14,
-    color: '#333',
-  },
-  streakValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  moodCard: {
-    backgroundColor: '#FCEBF5',
-    borderRadius: 15,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
-    width: 130,
-  },
-  moodLabel: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  moodEmoji: {
-    fontSize: 40,
-  },
-
-  // Affirmation
   affirmationSection: {
     marginBottom: 25,
     backgroundColor: '#EDF3DD',
@@ -292,13 +404,45 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  affirmationContent: {
-    color: '#666',
+  textInput: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 15,
+    textAlignVertical: 'top',
+    minHeight: 100,
+    fontSize: 16,
     lineHeight: 22,
-    fontSize: 14,
   },
-
-  // Bottom Nav
+  moodRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  moodButton: {
+    padding: 10,
+    borderRadius: 10,
+  },
+  moodSelected: {
+    backgroundColor: '#fff',
+  },
+  moodText: {
+    fontSize: 24,
+  },
+  reflectButton: {
+    marginTop: 15,
+    backgroundColor: '#CFD9B4',
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  reflectButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginRight: 10,
+  },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -324,8 +468,13 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 5,
   },
+  affirmationContent: {
+    color: '#666',
+    lineHeight: 22,
+    fontSize: 14,
+  },
 
-  // Overlay + Modal Cards
+  // Modal overlay
   overlay: {
     position: 'absolute',
     top: 0,
@@ -337,6 +486,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
+
+  // Card
   card: {
     width: '85%',
     backgroundColor: '#F8DDEB',
@@ -358,6 +509,19 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginBottom: 10,
+  },
+  cardTextDisplay: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    marginBottom: 20,
+    minHeight: 80,
+  },
+  cardDisplayText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
   },
   cardTextInput: {
     fontSize: 14,

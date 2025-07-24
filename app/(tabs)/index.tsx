@@ -234,7 +234,7 @@ export default function index() {
                     <Text style={styles.moodText}>{mood}</Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+               </View>
             </View>
 
             {/* Affirmation Section */}
@@ -326,7 +326,6 @@ export default function index() {
                 <View style={styles.aiCardBox}>
                   <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
                   <Text style={styles.aiCardText}>
-                    It sounds like you had a mixed day with some challenges but also successes. You're showing resilience & how you're handling stress.
                     It sounds like you had a mixed day with some challenges but also successes. You're showing resilience & how you're handling stress.
                   </Text>
                 </View>

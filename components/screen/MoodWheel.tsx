@@ -3,6 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, Image, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Needle from '../../assets/images/needle.svg';
 import MoodApiService from '../../services/moodServices';
+// Import your authentication method - adjust based on your auth system
+import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Firebase example
+// OR import your custom auth context
+// import { useAuth } from '../context/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 const RADIUS = width * 0.270;
@@ -43,120 +47,156 @@ const INTENSITY_MAPPING = {
   'irritated': 6
 };
 
-export default function MoodWheel({ userId = null, firebaseUid = null }) {
+export default function MoodWheel() {
   const [rotation, setRotation] = useState(0);
   const [currentMood, setCurrentMood] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [authUser, setAuthUser] = useState(null);
 
-  // Initialize user ID on component mount
+  // Get the logged-in user and fetch their database user ID
   useEffect(() => {
-    const initializeUserId = async () => {
-      console.log('Starting user initialization...', { userId, firebaseUid });
+    const initializeUser = async () => {
+      console.log('Initializing user authentication...');
       setIsInitializing(true);
       setError(null);
 
       try {
-        // Case 1: Direct userId provided
-        if (userId) {
-          console.log('Using provided userId:', userId);
-          
-          // Validate the userId by checking if user exists
-          try {
-            const response = await fetch(`http://192.168.137.1:5000/api/moodtrack/validate-user/${userId}`);
-            if (response.ok) {
-              setCurrentUserId(userId);
-              console.log('User ID validated successfully');
-              return;
-            } else {
-              console.log('User ID validation failed, status:', response.status);
-              throw new Error('Invalid user ID');
-            }
-          } catch (validationError) {
-            console.log('User validation failed, continuing with provided ID anyway:', validationError);
-            // Continue with the provided userId even if validation fails
-            setCurrentUserId(userId);
-            return;
-          }
-        }
-
-        // Case 2: Firebase UID provided - fetch user by firebaseUid
-        if (firebaseUid) {
-          console.log('Fetching user by firebaseUid:', firebaseUid);
-          
-          try {
-            const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUid}`);
-            console.log('Firebase user lookup response status:', response.status);
+        // Method 1: Using Firebase Auth (adjust based on your auth system)
+        const auth = getAuth();
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            console.log('Firebase user found:', firebaseUser.uid);
+            setAuthUser(firebaseUser);
             
-            if (response.ok) {
-              const userData = await response.json();
-              console.log('User found by firebaseUid:', userData);
-              if (userData.success && userData.data && userData.data.id) {
-                setCurrentUserId(userData.data.id);
-                console.log('Successfully set user ID from firebase lookup:', userData.data.id);
-                return;
+            // Fetch the user's database record using Firebase UID
+            try {
+              const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUser.uid}`);
+              console.log('User lookup response status:', response.status);
+              
+              if (response.ok) {
+                const userData = await response.json();
+                console.log('Database user found:', userData);
+                
+                if (userData.success && userData.data && userData.data.id) {
+                  setCurrentUserId(userData.data.id);
+                  console.log('Successfully set user ID:', userData.data.id);
+                } else {
+                  throw new Error('Invalid user data structure');
+                }
               } else {
-                throw new Error('Invalid user data structure');
+                const errorData = await response.json();
+                console.log('User lookup failed:', errorData);
+                
+                // If user not found in database, create them
+                if (response.status === 404) {
+                  console.log('User not found in database, creating new user...');
+                  await createUserInDatabase(firebaseUser);
+                } else {
+                  throw new Error(errorData.error || 'Failed to fetch user data');
+                }
               }
-            } else {
-              const errorData = await response.json();
-              console.log('Firebase user lookup failed:', errorData);
-              throw new Error(errorData.error || 'User not found by Firebase UID');
-            }
-          } catch (fetchError) {
-            console.error('Error fetching user by firebaseUid:', fetchError);
-            setError(`Failed to find user account: ${fetchError.message}`);
-            return;
-          }
-        }
-
-        // Case 3: No user info provided - create test user (development only)
-        console.log('No user info provided, creating test user...');
-        
-        try {
-          const response = await fetch('http://192.168.137.1:5000/api/moodtrack/test-user', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
-          
-          console.log('Test user creation response status:', response.status);
-          
-          if (response.ok) {
-            const result = await response.json();
-            console.log('Test user creation result:', result);
-            
-            if (result.success && result.data && result.data.id) {
-              setCurrentUserId(result.data.id);
-              console.log('Test user created successfully:', result.data.id);
-              return;
-            } else {
-              throw new Error('Invalid test user creation response');
+            } catch (fetchError) {
+              console.error('Error fetching user data:', fetchError);
+              setError(`Failed to load user data: ${fetchError.message}`);
             }
           } else {
-            const errorData = await response.json();
-            console.log('Test user creation failed:', errorData);
-            throw new Error(errorData.error || 'Failed to create test user');
+            console.log('No authenticated user found');
+            setAuthUser(null);
+            setCurrentUserId(null);
+            setError('Please log in to use the mood tracker');
           }
-        } catch (testUserError) {
-          console.error('Failed to create test user:', testUserError);
-          setError(`Failed to initialize: ${testUserError.message}`);
-          return;
+          setIsInitializing(false);
+        });
+
+        return () => unsubscribe();
+
+        // Method 2: Using Custom Auth Context (uncomment if using custom auth)
+        /*
+        const { user, isAuthenticated } = useAuth();
+        
+        if (isAuthenticated && user) {
+          if (user.id) {
+            // If you already have the database user ID
+            setCurrentUserId(user.id);
+            console.log('Using user ID from auth context:', user.id);
+          } else if (user.firebaseUid) {
+            // If you have Firebase UID, fetch the database user ID
+            await fetchUserByFirebaseUid(user.firebaseUid);
+          }
+        } else {
+          setError('Please log in to use the mood tracker');
         }
+        setIsInitializing(false);
+        */
 
       } catch (error) {
-        console.error('Unexpected error during initialization:', error);
-        setError(`Initialization failed: ${error.message}`);
-      } finally {
+        console.error('Error during user initialization:', error);
+        setError(`Authentication error: ${error.message}`);
         setIsInitializing(false);
       }
     };
 
-    initializeUserId();
-  }, [userId, firebaseUid]);
+    initializeUser();
+  }, []);
+
+  // Helper function to create user in database if they don't exist
+  const createUserInDatabase = async (firebaseUser) => {
+    try {
+      console.log('Creating user in database...');
+      const response = await fetch('http://192.168.137.1:5000/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firebaseUid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('User created successfully:', result);
+        
+        if (result.user && result.user.id) {
+          setCurrentUserId(result.user.id);
+          console.log('New user ID set:', result.user.id);
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create user');
+      }
+    } catch (error) {
+      console.error('Error creating user in database:', error);
+      setError(`Failed to create user account: ${error.message}`);
+    }
+  };
+
+  // Helper function to fetch user by Firebase UID
+  const fetchUserByFirebaseUid = async (firebaseUid) => {
+    try {
+      const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUid}`);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        if (userData.success && userData.data && userData.data.id) {
+          setCurrentUserId(userData.data.id);
+          console.log('User ID fetched:', userData.data.id);
+        }
+      } else {
+        throw new Error('User not found in database');
+      }
+    } catch (error) {
+      console.error('Error fetching user by Firebase UID:', error);
+      setError(`Failed to fetch user: ${error.message}`);
+    }
+  };
 
   // Clear error when user interacts
   const clearError = () => {
@@ -185,8 +225,8 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
   const handleSaveMood = async (moodIndex: number) => {
     // Validate userId
     if (!currentUserId) {
-      setError('User ID is required to save mood');
-      Alert.alert('Error', 'Please log in to save your mood');
+      setError('Please log in to save your mood');
+      Alert.alert('Authentication Required', 'Please log in to save your mood');
       return;
     }
 
@@ -204,19 +244,18 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
         userId: currentUserId,
       };
 
-      console.log("Sending mood data:", moodData);
+      console.log("Sending mood data for user:", currentUserId, moodData);
 
       const result = await MoodApiService.saveMoodEntry(moodData);
       
       if (result && result.success) {
         setCurrentMood(moodName);
-        console.log("Mood saved successfully!", result.data);
+        console.log("Mood saved successfully for user:", currentUserId, result.data);
         
-        // Show custom success message instead of alert
-        setCurrentMood(moodName);
+        // Show success message
         setTimeout(() => {
           setCurrentMood(null);
-        }, 1000);
+        }, 2000);
       } else {
         throw new Error(result?.error || 'Unknown error occurred');
       }
@@ -258,6 +297,15 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
 
   const isDisabled = isSaving || isInitializing || !currentUserId;
 
+  // Show authentication required message
+  if (!isInitializing && !authUser) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.authRequiredText}>Please log in to track your mood</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
       {/* Success message display */}
@@ -276,6 +324,15 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* User info display (optional - for debugging) */}
+      {/* {currentUserId && (
+        <View style={styles.userInfoContainer}>
+          <Text style={styles.userInfoText}>
+            Logged in as: {authUser?.email || 'User'} (ID: {currentUserId.slice(-6)})
+          </Text>
+        </View>
+      )} */}
 
       {/* Donut background */}
       <View style={styles.donutContainer}>
@@ -358,7 +415,7 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
           <Text style={styles.saveButtonText}>
             {isSaving ? 'Saving...' : 
              isInitializing ? 'Loading...' : 
-             !currentUserId ? 'Unavailable' : 
+             !currentUserId ? 'Please Log In' : 
              'Save Mood'}
           </Text>
         </TouchableOpacity>
@@ -514,6 +571,27 @@ const styles = StyleSheet.create({
     color: '#c62828',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  authRequiredText: {
+    fontSize: 18,
+    color: '#6A4E77',
+    textAlign: 'center',
+    marginHorizontal: 20,
+  },
+  userInfoContainer: {
+    position: 'absolute',
+    top: -280,
+    left: 20,
+    right: 20,
+    backgroundColor: '#e8f5e8',
+    borderRadius: 8,
+    padding: 8,
+    zIndex: 50,
+  },
+  userInfoText: {
+    fontSize: 12,
+    color: '#4caf50',
+    textAlign: 'center',
   },
   donutContainer: {
     position: 'absolute',

@@ -50,7 +50,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [initializationStatus, setInitializationStatus] = useState('Starting...');
 
   // Initialize user ID on component mount
   useEffect(() => {
@@ -63,7 +62,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
         // Case 1: Direct userId provided
         if (userId) {
           console.log('Using provided userId:', userId);
-          setInitializationStatus('Validating user ID...');
           
           // Validate the userId by checking if user exists
           try {
@@ -87,7 +85,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
         // Case 2: Firebase UID provided - fetch user by firebaseUid
         if (firebaseUid) {
           console.log('Fetching user by firebaseUid:', firebaseUid);
-          setInitializationStatus('Finding user account...');
           
           try {
             const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUid}`);
@@ -117,7 +114,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
 
         // Case 3: No user info provided - create test user (development only)
         console.log('No user info provided, creating test user...');
-        setInitializationStatus('Creating test user...');
         
         try {
           const response = await fetch('http://192.168.137.1:5000/api/moodtrack/test-user', {
@@ -156,7 +152,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
         setError(`Initialization failed: ${error.message}`);
       } finally {
         setIsInitializing(false);
-        setInitializationStatus('');
       }
     };
 
@@ -217,11 +212,11 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
         setCurrentMood(moodName);
         console.log("Mood saved successfully!", result.data);
         
-        Alert.alert(
-          'Mood Saved!', 
-          `Your ${moodMessage.toLowerCase()} mood has been recorded.`,
-          [{ text: 'OK', style: 'default' }]
-        );
+        // Show custom success message instead of alert
+        setCurrentMood(moodName);
+        setTimeout(() => {
+          setCurrentMood(null);
+        }, 1000);
       } else {
         throw new Error(result?.error || 'Unknown error occurred');
       }
@@ -265,6 +260,13 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
 
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
+      {/* Success message display */}
+      {currentMood && (
+        <View style={styles.successContainer}>
+          <Text style={styles.successText}>Mood Saved! ✨</Text>
+        </View>
+      )}
+
       {/* Error display */}
       {error && (
         <View style={styles.errorContainer}>
@@ -272,24 +274,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
           <TouchableOpacity onPress={() => setError(null)} style={styles.dismissButton}>
             <Text style={styles.dismissText}>×</Text>
           </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Initialization status display */}
-      {isInitializing && (
-        <View style={styles.initializationContainer}>
-          <Text style={styles.initializationText}>{initializationStatus}</Text>
-        </View>
-      )}
-
-      {/* Debug info */}
-      {__DEV__ && (
-        <View style={styles.debugContainer}>
-          <Text style={styles.debugText}>
-            UserId: {currentUserId ? currentUserId.slice(-8) : 'null'} | 
-            Firebase: {firebaseUid ? firebaseUid.slice(-8) : 'null'} |
-            Initializing: {isInitializing ? 'yes' : 'no'}
-          </Text>
         </View>
       )}
 
@@ -322,12 +306,6 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
           )}
         </TouchableOpacity>
         <Text style={styles.labelMessage}>{MESSAGES[selectedIndex]}</Text>
-        {isInitializing && (
-          <Text style={styles.warningText}>Please wait, initializing...</Text>
-        )}
-        {!isInitializing && !currentUserId && (
-          <Text style={styles.warningText}>Failed to initialize user</Text>
-        )}
       </View>
 
       {/* Emoji Wheel */}
@@ -379,8 +357,8 @@ export default function MoodWheel({ userId = null, firebaseUid = null }) {
         >
           <Text style={styles.saveButtonText}>
             {isSaving ? 'Saving...' : 
-             isInitializing ? 'Initializing...' : 
-             !currentUserId ? 'Failed to Initialize' : 
+             isInitializing ? 'Loading...' : 
+             !currentUserId ? 'Unavailable' : 
              'Save Mood'}
           </Text>
         </TouchableOpacity>
@@ -485,10 +463,28 @@ const styles = StyleSheet.create({
     color: '#6A4E77',
     fontWeight: 'bold',
   },
-  warningText: {
-    fontSize: 14,
-    color: '#ff6b6b',
-    marginTop: 5,
+  successContainer: {
+    position: 'absolute',
+    top: -550,
+    left: 20,
+    right: 20,
+    backgroundColor: '#f3e5f5',
+    borderColor: '#9c27b0',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    zIndex: 100,
+    shadowColor: '#9c27b0',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  successText: {
+    color: '#6A4E77',
+    fontSize: 16,
+    fontWeight: 'bold',
     textAlign: 'center',
   },
   errorContainer: {
@@ -518,39 +514,6 @@ const styles = StyleSheet.create({
     color: '#c62828',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  initializationContainer: {
-    position: 'absolute',
-    top: -200,
-    left: 20,
-    right: 20,
-    backgroundColor: '#e3f2fd',
-    borderColor: '#2196f3',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    zIndex: 100,
-  },
-  initializationText: {
-    color: '#1565c0',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  debugContainer: {
-    position: 'absolute',
-    top: -250,
-    left: 20,
-    right: 20,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 4,
-    padding: 8,
-    zIndex: 50,
-  },
-  debugText: {
-    fontSize: 10,
-    color: '#666',
-    textAlign: 'center',
   },
   donutContainer: {
     position: 'absolute',

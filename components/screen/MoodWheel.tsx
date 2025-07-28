@@ -1,5 +1,5 @@
-import LottieView from 'lottie-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import { useFonts } from 'expo-font';
+import React, { useState } from 'react';
 import { Dimensions, Image, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Needle from '../../assets/images/needle.svg';
 
@@ -23,10 +23,19 @@ const CENTER_OFFSET = Math.floor(LOOP_EMOJIS.length / 2);
 const MESSAGES = ["Sad", "Fine", "Happy!", "Nervous", "Disappointed", "Irritated"];
 
 export default function MoodWheel() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans: require('../../assets/fonts/PlusJakartaSans.ttf'),
+  });
   const [rotation, setRotation] = useState(0);
-  const [showAnimation, setShowAnimation] = useState(false);
   const [currentMood, setCurrentMood] = useState<string | null>(null);
-  const animationRef = useRef<LottieView>(null);
+    if (!fontsLoaded) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <Text>Loading fonts...</Text>
+    </View>
+  );
+  }
+  
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -44,70 +53,62 @@ export default function MoodWheel() {
   let selectedIndex = Math.round(rotation / ANGLE_STEP) % EMOJIS.length;
   if (selectedIndex < 0) selectedIndex += EMOJIS.length;
 
-  useEffect(() => {
-    if (showAnimation) {
-      animationRef.current?.play();
-    }
-  }, [showAnimation]);
-
   return (
     <View style={styles.container} {...panResponder.panHandlers}>
-      <View style={styles.donutContainer}>
-        <View style={styles.outerHalfCircle} />
-        <View style={styles.innerHalfCircle} />
-      </View>
-
-      <View style={styles.needleIcon}>
-        <Needle width={60} height={80} fill="#6A4E77" />
-      </View>
-
-      <View style={styles.labelContainer}>
-        <View style={styles.centerEmojiCircle}>
-          <Image source={EMOJIS[selectedIndex].image} style={styles.labelEmoji} />
+        <View style={styles.donutContainer}>
+          <View style={styles.outerHalfCircle} />
+          <View style={styles.innerHalfCircle} />
         </View>
-        <Text style={styles.labelMessage}>{MESSAGES[selectedIndex]}</Text>
+
+        <View style={styles.needleIcon}>
+          <Needle width={60} height={80} fill="#6A4E77" />
+        </View>
+
+        <View style={styles.labelContainer}>
+          <View style={styles.centerEmojiCircle}>
+            <Image source={EMOJIS[selectedIndex].image} style={styles.labelEmoji} />
+          </View>
+          <Text style={styles.labelMessage}>{MESSAGES[selectedIndex]}</Text>
+        </View>
+
+        {/* Emoji Wheel */}
+        {LOOP_EMOJIS.map((emoji, i) => {
+          const angle = ANGLE_STEP * (i - CENTER_OFFSET);
+          const posAngle = angle - rotation;
+          if (Math.abs(posAngle) > Math.PI / 2 + 0.5) return null;
+
+          const x = RADIUS * Math.cos(posAngle - Math.PI / 2);
+          const y = RADIUS * Math.sin(posAngle - Math.PI / 2);
+          const isSelected = Math.abs(posAngle) < ANGLE_STEP / 2;
+
+          return (
+            <Image
+              key={i + emoji.name}
+              source={emoji.image}
+              style={{
+                position: 'absolute',
+                left: width / 2 + x - (isSelected ? 25 : 18),
+                top: RADIUS + y - (isSelected ? 25 : 18),
+                width: isSelected ? 60 : 35,
+                height: isSelected ? 60 : 35,
+                opacity: isSelected ? 1 : 0.5,
+                resizeMode: 'contain',
+              }} />
+          );
+        })}
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={styles.saveButtonContainer}
+          onPress={() => {
+            const moodName = EMOJIS[selectedIndex].name;
+            setCurrentMood(moodName);
+            console.log("Mood saved!", moodName);
+          } }
+        >
+          <Text style={styles.saveButtonText}>Save Mood</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Emoji Wheel */}
-      {LOOP_EMOJIS.map((emoji, i) => {
-        const angle = ANGLE_STEP * (i - CENTER_OFFSET);
-        const posAngle = angle - rotation;
-        if (Math.abs(posAngle) > Math.PI / 2 + 0.5) return null;
-
-        const x = RADIUS * Math.cos(posAngle - Math.PI / 2);
-        const y = RADIUS * Math.sin(posAngle - Math.PI / 2);
-        const isSelected = Math.abs(posAngle) < ANGLE_STEP / 2;
-
-        return (
-          <Image
-            key={i + emoji.name}
-            source={emoji.image}
-            style={{
-              position: 'absolute',
-              left: width / 2 + x - (isSelected ? 25 : 18),
-              top: RADIUS + y - (isSelected ? 25 : 18),
-              width: isSelected ? 60 : 35,
-              height: isSelected ? 60 : 35,
-              opacity: isSelected ? 1 : 0.5,
-              resizeMode: 'contain',
-            }}
-          />
-        );
-      })}
-
-      {/* Save Button */}
-      <TouchableOpacity
-        style={styles.saveButtonContainer}
-        onPress={() => {
-          const moodName = EMOJIS[selectedIndex].name;
-          setCurrentMood(moodName);
-          setShowAnimation(true);
-          console.log("Mood saved!", moodName);
-        }}
-      >
-        <Text style={styles.saveButtonText}>Save Mood</Text>
-      </TouchableOpacity>
-    </View>
   );
 }
 
@@ -118,22 +119,23 @@ const styles = StyleSheet.create({
   },
   labelContainer: {
     position: 'absolute',
-    top: -170,
+    top: -205,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   labelEmoji: {
-    width: 87,
-    height: 87,
+    width: 125,
+    height: 125,
     resizeMode: 'contain',
   },
   labelMessage: {
-    fontSize: 22,
+    fontSize: 25,
     fontWeight: 'bold',
-    color: '#6A4E77',
+    fontFamily: 'PlusJakartaSans',
+    color: '#5f3f5eff',
     left: 2,
-    marginTop: -17,
+    marginTop: -19,
   },
   needleIcon: {
     position: 'absolute',
@@ -143,31 +145,32 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-93deg' }],
   },
   saveButtonContainer: {
-    marginTop: RADIUS * 1.3,
+    marginTop: RADIUS * 1.2,
     alignSelf: 'center',
-    backgroundColor: '#fffcdbff',
+    backgroundColor: '#def1ffff',
     paddingHorizontal: 28,
     paddingVertical: 12,
-    borderWidth: 0.2,
+    borderWidth: 0.1,
     borderRadius: 24,
-    shadowColor: '#B197FC',
+    shadowColor: '#5c4b8dff',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
     elevation: 5,
   },
   saveButtonText: {
-    color: '#6A4E77',
+    color: '#194d75ff',
     fontSize: 18,
     fontWeight: 'bold',
+    fontFamily: 'PlusJakartaSans'
   },
   centerEmojiCircle: {
-    width: 92,
-    top: -30,
-    height: 92,
-    borderRadius: 45,
+    width: 127,
+    top: -31,
+    height: 127,
+    borderRadius: 62,
     borderWidth: 1.3,
-    borderColor: '#6A4E77',
+    borderColor: '#030004ff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#6A4E77',
@@ -190,7 +193,7 @@ const styles = StyleSheet.create({
     width: RADIUS * 2.54,
     height: RADIUS * 2.54,
     borderRadius: RADIUS * 1.5,
-    backgroundColor: '#7d847796',
+    backgroundColor: '#9acf9dff',
     position: 'absolute',
     top: -30,
     opacity: 0.35,
@@ -199,17 +202,19 @@ const styles = StyleSheet.create({
     width: RADIUS * 1.5,
     height: RADIUS * 1.55,
     borderRadius: RADIUS * 0.8,
-    backgroundColor: '#fcdefcff',
+    backgroundColor: '#f6fff4ff',
     position: 'absolute',
     top: 40,
     opacity: 1,
   },
-  confetti: {
-    position: 'absolute',
-    top: -height * 0.8,  // adjust as needed to center nicely
-    left: -width * 0.1,
-    width: width * 1.4,
-    height: height * 1.2,
-    zIndex: 999,
-  },
+  patternBackground: {
+  position: 'absolute',
+  top: -30,
+  width: RADIUS * 2.54,
+  height: RADIUS * 2.54,
+  borderRadius: RADIUS * 1.5,
+  resizeMode: 'cover',
+  zIndex: -1,
+  opacity: 0.85, 
+},
 });

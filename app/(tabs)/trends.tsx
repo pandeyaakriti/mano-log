@@ -1,6 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import {
+  Dimensions,
   Image,
   SafeAreaView,
   ScrollView,
@@ -15,6 +16,8 @@ import {
 } from 'react-native-gesture-handler';
 import { BarChart } from 'react-native-gifted-charts';
 import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
+
+const { width } = Dimensions.get('window');
 
 const EMOJIS = [
   { name: 'sad', image: require('../../assets/images/sad.png'), color: '#bed9efff' },
@@ -169,7 +172,7 @@ const MoodArc = ({ counts, total }: { counts: number[]; total: number }) => {
   return (
     <Svg width={120} height={120}>
       <G>
-        <Circle cx={60} cy={60} r={58} fill="#f5ebf7ff" />
+        <Circle cx={60} cy={60} r={53} fill="#a98c84ff" />
         {counts.map((count, i) => {
           if (count === 0) return null;
 
@@ -253,6 +256,22 @@ export default function MoodTrendsUI() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.safe}>
+        <View style={styles.waveWrapper}>
+          <Svg width={width} height={300} viewBox={`0 0 ${width} 200`}>
+            <Path
+              d={`
+                M0,-80 
+                H${width} 
+                V200 
+                C${width * 0.8},130 ${width * 0.6},100 ${width * 0.5},80 
+                C${width * 0.2},160 ${width * 0.1},140 0,100 
+                Z
+              `}
+              fill="#d7e9d1ff"
+            />
+          </Svg>
+        </View>
+        
         <ScrollView contentContainerStyle={styles.container}>
           <Text style={styles.title}>Mood Trends</Text>
 
@@ -281,7 +300,7 @@ export default function MoodTrendsUI() {
                     </View>
 
           <LinearGradient
-  colors={['#e9d5ff', '#fcd5ce']}
+  colors={['#bddee7ff', '#d4eaeaff']}
   start={{ x: 0, y: 0 }}
   end={{ x: 1, y: 1 }}
   style={styles.card}  // still applies padding, borderRadius, shadow, etc.
@@ -399,7 +418,7 @@ export default function MoodTrendsUI() {
                       {calendarDays.map((day, i) => {
                         if (day === null) {
                           return (
-                            <View key={i} style={[styles.calendarCell, { backgroundColor: '#f0e6f7' }]} />
+                            <View key={i} style={[styles.calendarCell, { backgroundColor: '#ccddea' }]} />
                           );
                         }
 
@@ -424,10 +443,10 @@ export default function MoodTrendsUI() {
           </LinearGradient>
 
           <LinearGradient
-  colors={['#eed4ffff', '#ffe9c6ff']}
+  colors={['#F8D6CC', '#fce4ddff']}
   start={{ x: 0, y: 0 }}
   end={{ x: 1, y: 1 }}
-  style={styles.card}  // still applies padding, borderRadius, shadow, etc.
+  style={styles.card} 
 >
             <Text style={styles.sectionTitle}>Mood Count</Text>
             <View style={styles.dateBox}>
@@ -467,17 +486,17 @@ export default function MoodTrendsUI() {
 
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f3e5f3ff', paddingTop: 30 },
+  safe: { flex: 1, backgroundColor: '#ffffffd2', paddingTop: 30 },
   container: { padding: 18, paddingBottom: 90 },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#5b006bff',
+    color: '#2770a0',
     textAlign: 'center',
     marginVertical: 12,
   },
   chartContainer: {
-  backgroundColor: '#FCEAFD', // your custom background
+  backgroundColor: '#f2f6fcff', // your custom background
   borderRadius: 14,
   paddingVertical: 10,
   height: 195,
@@ -496,18 +515,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statBox: {
-    backgroundColor: '#ffebf0ff',
+    backgroundColor: '#D8D5F0',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#b085b5ff',
+    borderColor: '#ccddea',
     padding: 12,
     width: '30%',
     marginVertical: 6,
   },
-  statLabel: { fontSize: 12, color: '#540060bb', fontWeight: 'bold' },
-  statValue: { fontSize: 22, color: '#444', fontWeight: 'bold', marginTop: 2 },
+  statLabel: { fontSize: 12, color: '#2770a0', fontWeight: 'bold' },
+  statValue: { fontSize: 22, color: '#2770a0', fontWeight: 'bold', marginTop: 2 },
   card: {
-    backgroundColor: '#d9ebc3b0',
+    backgroundColor: '#ccddea',
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
@@ -519,13 +538,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#470a57ff',
+    color: '#2770a0',
     marginBottom: 4,
   },
   tabRow: {
     flexDirection: 'row',
     marginVertical: 10,
-    backgroundColor: '#f2e4ffff',
+    backgroundColor: '#94c6e7ff',
     borderRadius: 10,
     overflow: 'hidden',
   },
@@ -535,14 +554,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#ecc2ede2',
+    backgroundColor: '#2770a0',
     borderRadius: 10,
   },
-  activeTabText: { color: '#470a57ff' },
-  tabText: { color: '#412f48ff', fontWeight: 'bold', fontSize: 14 },
+  activeTabText: { color: '#ccddea' },
+  tabText: { color: '#297fc1ff', fontWeight: 'bold', fontSize: 14 },
   dateLabel: {
     alignSelf: 'center',
-    color: '#444',
+    color: '#fffefeff',
     fontWeight: 'bold',
     marginBottom: 2,
     paddingTop: 4,
@@ -553,7 +572,7 @@ const styles = StyleSheet.create({
     marginLeft: -15,
     marginRight: -15,
     paddingBottom: 2,
-    backgroundColor: '#f5d5fdff',
+    backgroundColor: '#2770a0',
     borderRadius: 10,
     opacity: 1,
   },
@@ -562,7 +581,7 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     fontSize: 14,
-    color: '#63006eff',
+    color: '#ccddea',
     fontWeight: 'bold',
   },
   
@@ -584,7 +603,7 @@ const styles = StyleSheet.create({
   height: 30,
   alignItems: 'center',
   justifyContent: 'space-between',
-  backgroundColor: '#fce7ffff',
+  backgroundColor: '#2770a0',
   paddingHorizontal: 12,
   paddingVertical: 0,
   borderRadius: 16,
@@ -606,16 +625,16 @@ dateLabelContainer: {
   calendarCell: {
     width: 45,
     height: 60,
-    borderRadius: 12,
-    borderColor: '#cca9d7ff',
+    borderRadius: 18,
+    borderColor: '#1b2755ff',
     borderWidth: 1,
-    backgroundColor: '#ffeaf4ff',
+    backgroundColor: '#ecf3f8ff',
     margin: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   calendarDateText: {
-    color: '#581872ff',
+    color: '#1b6ca2ff',
     fontWeight: 'bold',
   },
   moodIconRow: {
@@ -626,7 +645,7 @@ dateLabelContainer: {
     position: 'absolute',
     right: -6,
     top: -10,
-    backgroundColor: '#a56db1',
+    backgroundColor: '#ccddea',
     borderRadius: 8,
     minWidth: 18,
     height: 18,
@@ -635,12 +654,12 @@ dateLabelContainer: {
     paddingHorizontal: 4,
   },
   badgeText: {
-    color: '#000',
+    color: '#2770a0',
     fontWeight: 'bold',
     fontSize: 11,
   },
   moodCountContainer: {
-  backgroundColor: '#fbeeff', // your desired bg color
+  backgroundColor: '#eff7ffff', // your desired bg color
   paddingVertical: 10,
   paddingHorizontal: 12,
   height: 50,
@@ -653,7 +672,7 @@ dateLabelContainer: {
   elevation: 3,
 },
 dateBox: {
-  backgroundColor: '#fbe9fd',
+  backgroundColor: '#d89985ff',
   paddingVertical: 4,
   width: 150,
   height: 35,
@@ -664,5 +683,13 @@ dateBox: {
   shadowOpacity: 0.1,
   shadowRadius: 4,
   elevation: 2,
+},
+waveWrapper: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: width,
+  height: 300,
+  zIndex: 0,
 },
 });

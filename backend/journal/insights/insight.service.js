@@ -23,19 +23,19 @@ async function callOllamaForInsight(prompt) {
       }
     });
 
-    console.log('✅ Ollama response received');
+    console.log(' Ollama response received');
     console.log('Raw response:', response.data.response.substring(0, 200) + '...');
     
     return response.data.response;
   } catch (error) {
-    console.error('❌ Ollama API call failed:', error.message);
+    console.error(' Ollama API call failed:', error.message);
     throw new Error(`Ollama API call failed: ${error.message}`);
   }
 }
 
 // Function to extract JSON from Ollama response with better parsing
 function parseOllamaResponse(rawResponse) {
-  console.log('🔍 Parsing Ollama response:', rawResponse.substring(0, 200) + '...');
+  console.log('Parsing Ollama response:', rawResponse.substring(0, 200) + '...');
   
   try {
     // First, try to parse as direct JSON
@@ -51,7 +51,7 @@ function parseOllamaResponse(rawResponse) {
     throw new Error('Missing required fields in JSON response');
     
   } catch (jsonError) {
-    console.log('⚠️ JSON parsing failed, attempting fallback parsing...');
+    console.log(' JSON parsing failed, attempting fallback parsing...');
     
     // Fallback: Try to extract JSON from within the response
     const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
@@ -70,7 +70,7 @@ function parseOllamaResponse(rawResponse) {
     }
     
     // Advanced fallback: Extract content between quotes
-    console.log('📝 Using advanced text extraction...');
+    console.log(' Using advanced text extraction...');
     
     let summary = '';
     let wellnessTip = '';
@@ -126,8 +126,8 @@ function parseOllamaResponse(rawResponse) {
       wellnessTip = "Try taking three deep breaths right now - breathe in for 4 counts, hold for 4, and exhale for 6.";
     }
     
-    console.log('✅ Parsed summary:', summary.substring(0, 100) + '...');
-    console.log('✅ Parsed tip:', wellnessTip.substring(0, 100) + '...');
+    console.log(' Parsed summary:', summary.substring(0, 100) + '...');
+    console.log(' Parsed tip:', wellnessTip.substring(0, 100) + '...');
     
     return {
       summary: summary,
@@ -152,7 +152,7 @@ function cleanText(text) {
 
 async function generateInsightFromJournal(journalId) {
   try {
-    console.log('🔍 Starting insight generation for journal:', journalId);
+    console.log(' Starting insight generation for journal:', journalId);
     
     // 1. Fetch journal entry
     const journal = await prisma.journalEntry.findUnique({
@@ -163,7 +163,7 @@ async function generateInsightFromJournal(journalId) {
       throw new Error('Journal entry not found');
     }
     
-    console.log('📝 Journal entry found, length:', journal.textContent.length);
+    console.log(' Journal entry found, length:', journal.textContent.length);
     
     // 2. Check if insight already exists
     const existingInsight = await prisma.aIInsight.findUnique({
@@ -171,13 +171,13 @@ async function generateInsightFromJournal(journalId) {
     });
     
     if (existingInsight) {
-      console.log('♻️ Returning existing insight');
+      console.log(' Returning existing insight');
       return existingInsight;
     }
     
     // 3. Build prompt for JSON response
     const prompt = buildInsightPrompt(journal.textContent);
-    console.log('🎯 Prompt built, length:', prompt.length);
+    console.log(' Prompt built, length:', prompt.length);
     
     // 4. Call Ollama
     const ollamaResponse = await callOllamaForInsight(prompt);
@@ -185,7 +185,7 @@ async function generateInsightFromJournal(journalId) {
     // 5. Parse response
     const { summary, wellnessTip } = parseOllamaResponse(ollamaResponse);
     
-    console.log('✨ Parsed response:');
+    console.log(' Parsed response:');
     console.log('Summary:', summary.substring(0, 100) + '...');
     console.log('Wellness Tip:', wellnessTip.substring(0, 100) + '...');
     
@@ -201,11 +201,11 @@ async function generateInsightFromJournal(journalId) {
       },
     });
 
-    console.log('💾 Insight saved to database with ID:', insight.id);
+    console.log(' Insight saved to database with ID:', insight.id);
     return insight;
 
   } catch (error) {
-    console.error('❌ Error in generateInsightFromJournal:', error);
+    console.error(' Error in generateInsightFromJournal:', error);
     
     // Enhanced fallback with more contextual responses
     try {
@@ -246,11 +246,11 @@ async function generateInsightFromJournal(journalId) {
         },
       });
 
-      console.log('🔄 Fallback insight created with ID:', fallbackInsight.id);
+      console.log(' Fallback insight created with ID:', fallbackInsight.id);
       return fallbackInsight;
       
     } catch (fallbackError) {
-      console.error('❌ Fallback insight creation also failed:', fallbackError);
+      console.error(' Fallback insight creation also failed:', fallbackError);
       throw new Error('Failed to generate insight: ' + error.message);
     }
   }

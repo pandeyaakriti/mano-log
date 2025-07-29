@@ -166,24 +166,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout
-  // const logout = async () => {
-  //   try {
-  //     if (!auth) {
-  //       throw new Error('Firebase auth is not initialized');
-  //     }
-      
-  //     setError(null);
-  //     setSyncError(null);
-  //     setSyncStatus('idle');
-  //     await signOut(auth);
-  //   } catch (error) {
-  //     console.error('Logout error:', error);
-  //     const errorMessage = 'Failed to sign out';
-  //     setError(errorMessage);
-  //     throw new Error(errorMessage);
-  //   }
-  // };
   const logout = async () => {
   try {
     await signOut(auth); // Firebase signOut

@@ -21,9 +21,9 @@ export default function IndexScreen() {
   useEffect(() => {
     if (__DEV__ && !loading) {
       testBackendConnection?.()
-        .then(() => console.log('✅ Backend connection verified'))
+        .then(() => console.log('Backend connection verified'))
         .catch(error => {
-          console.error('❌ Backend connection failed:', error);
+          console.error(' Backend connection failed:', error);
           if (__DEV__) {
             Alert.alert(
               'Backend Connection Issue',

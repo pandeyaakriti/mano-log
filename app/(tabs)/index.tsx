@@ -1,3 +1,4 @@
+//app/(tabs)/index.tsx
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -13,12 +14,11 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
-
 type User = {
-  mongoId?: string;         // From MongoDB (_id mapped to mongoId)
-  firebaseUid?: string;     // From Firebase
-  uid?: string;             // Fallback for Firebase UID
-  id?: string;              // General fallback
+  mongoId?: string;
+  firebaseUid?: string;
+  uid?: string;
+  id?: string;
   displayName?: string;
   email?: string;
   photoURL?: string;
@@ -26,7 +26,15 @@ type User = {
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };
-
+type AIInsight = {
+  id: string;
+  summary: string;
+  wellnessTip: string; 
+  modelUsed?: string;
+  tokensUsed?: number;
+  confidence?: number;
+  createdAt?: string;
+};
 export default function index() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
@@ -36,15 +44,15 @@ export default function index() {
   const { user } = useAuth() as { user: User | null };
   const [savedReflection, setSavedReflection] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedJournalId, setSavedJournalId] = useState<string | null>(null);
+  const [aiInsight, setAiInsight] = useState<AIInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
 
-  //const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
-
-  // Debug user object on component mount and when user changes
   useEffect(() => {
-    console.log(' Current user object:', user);
-    console.log(' User firebaseUid:', user?.firebaseUid);
-    console.log(' User uid:', user?.uid);
-    console.log(' User id:', user?.id);
+    console.log('Current user object:', user);
+    console.log('User firebaseUid:', user?.firebaseUid);
+    console.log('User uid:', user?.uid);
+    console.log('User id:', user?.id);
   }, [user]);
 
   const getUserDisplayName = () => {
@@ -57,57 +65,53 @@ export default function index() {
     if (user?.photoURL) { 
       return { uri: user.photoURL };
     }
-    return require('../../assets/images/default-profile.jpg'); // Default profile image
+    return require('../../assets/images/default-profile.jpg');
   };
 
-  // Get the user's Firebase UID from multiple possible sources
   const getUserFirebaseUid = () => {
     return user?.firebaseUid || user?.uid || user?.id;
   };
 
   const saveReflection = async () => {
-    console.log(' Debug - saveReflection called');
-    console.log(' Debug - reflection state:', reflection);
-    console.log(' Debug - reflection length:', reflection.length);
-    console.log(' Debug - user object:', user);
+    console.log('Debug - saveReflection called');
+    console.log('Debug - reflection state:', reflection);
+    console.log('Debug - reflection length:', reflection.length);
+    console.log('Debug - user object:', user);
     
     const firebaseUid = getUserFirebaseUid();
-    console.log(' Debug - resolved firebaseUid:', firebaseUid);
+    console.log('Debug - resolved firebaseUid:', firebaseUid);
 
-    // Check if user is authenticated
     if (!user) {
-      console.log(' No user found');
+      console.log('No user found');
       Alert.alert('Authentication Error', 'User not found. Please login again.');
       return;
     }
 
-    // Check if we have a Firebase UID
     if (!firebaseUid) {
-      console.log(' No firebaseUid found in user object');
-      console.log(' Available user properties:', Object.keys(user));
+      console.log('No firebaseUid found in user object');
+      console.log('Available user properties:', Object.keys(user));
       Alert.alert('Authentication Error', 'User ID not found. Please logout and login again.');
       return;
     }
 
-    // Check if reflection is not empty
     if (!reflection.trim()) {
-      console.log(' Reflection is empty or only whitespace');
+      console.log('Reflection is empty or only whitespace');
       Alert.alert('Validation Error', 'Please write a reflection before saving.');
       return;
     }
 
     try {
       setIsLoading(true);
-      console.log(' Saving reflection for user:', firebaseUid);
+      console.log('Saving reflection for user:', firebaseUid);
       
       const payload = {
         firebaseUid: firebaseUid,
         textContent: reflection.trim(),
       }; 
-      console.log(' Payload:', payload);
+      console.log('Payload:', payload);
 
       const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal`;
-      console.log(' API URL:', apiUrl);
+      console.log('API URL:', apiUrl);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -117,60 +121,137 @@ export default function index() {
         },
         body: JSON.stringify(payload),
       });
-    console.log(' Response status:', response.status);
-    console.log(' Response ok:', response.ok);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(' Error response:', errorText);
       
-      let errorData;
-      try {
-        errorData = JSON.parse(errorText);
-      } catch {
-        errorData = { error: errorText };
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+
+        Alert.alert(
+          'Save Failed', 
+          `Failed to save reflection: ${errorData.error || 'Unknown error'}`
+        );
+        return;
       }
 
-      Alert.alert(
-        'Save Failed', 
-        `Failed to save reflection: ${errorData.error || 'Unknown error'}`
-      );
-      return;
-    }
-
-    const data = await response.json();
-    console.log('Response data:', data);
-
-    console.log('Journal saved successfully:', data);
-    setSavedReflection(reflection);  // Save before clearing
-    setShowReflectionCard(true); 
-    setShowSuccessModal(true);
-    Alert.alert('Success', 'Reflection saved successfully!');
-    setReflection('');
-    setSelectedMood(null);
-    
+      const data = await response.json();
+      console.log('Response data:', data);
+      console.log('Journal saved successfully:', data);
+      const journalId = data.journal?.id || data.id;
+      console.log('Extracted journal ID:', journalId);
+      
+      if (!journalId) {
+        console.error('No journal ID found in response:', data);
+        Alert.alert('Error', 'Journal saved but ID not found. Please try generating insights again.');
+        return;
+      }
+      setSavedJournalId(journalId);
+      setSavedReflection(reflection);
+      setShowReflectionCard(true); 
+      setShowSuccessModal(true);
+      Alert.alert('Success', 'Reflection saved successfully!');
+      setReflection('');
+      setSelectedMood(null);
 
     } catch (err) {
-    console.error(' API error:', err);
-    
-    // More specific error handling
-    let errorMessage = 'Error saving reflection. Please try again.';
-    
-    if ((err as Error).message === 'Network request failed') {
-      errorMessage = 'Network error: Cannot connect to server. Please check your internet connection and ensure the server is running.';
-    } else if ((err as Error).name === 'TypeError') {
-      errorMessage = 'Connection error: Please ensure the server is running and accessible.';
-    }
-    Alert.alert('Network Error, check internet connection', errorMessage);
+      console.error('API error:', err);
+      
+      let errorMessage = 'Error saving reflection. Please try again.';
+      
+      if ((err as Error).message === 'Network request failed') {
+        errorMessage = 'Network error: Cannot connect to server. Please check your internet connection and ensure the server is running.';
+      } else if ((err as Error).name === 'TypeError') {
+        errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+      }
+      Alert.alert('Network Error, check internet connection', errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
+  
+  //insights
+   const generateInsights = async () => {
+    if (!savedJournalId) {
+      Alert.alert('Error', 'No journal entry found to generate insights for.');
+      return;
+    }
+
+    try {
+      setInsightLoading(true);
+      console.log('Generating insights for journal ID:', savedJournalId);
+
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal/insight/generate/${savedJournalId}`;
+      console.log('Insight API URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+      });
+
+      console.log('Insight response status:', response.status);
+      console.log('Insight response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Insight error response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+
+        Alert.alert(
+          'Insight Generation Failed', 
+          `Failed to generate insights: ${errorData.error || 'Unknown error'}`
+        );
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Insight response data:', data);
+
+      if (data.success && data.data) {
+        setAiInsight(data.data);
+        setShowReflectionCard(false);
+        setShowAIInsights(true);
+      } else {
+        throw new Error('Invalid response format');
+      }
+
+    } catch (err) {
+      console.error('Insight API error:', err);
+      
+      let errorMessage = 'Error generating insights. Please try again.';
+      
+      if ((err as Error).message === 'Network request failed') {
+        errorMessage = 'Network error: Cannot connect to server. Please check your internet connection.';
+      } else if ((err as Error).name === 'TypeError') {
+        errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+      }
+      
+      Alert.alert('Network Error', errorMessage);
+    } finally {  
+      setInsightLoading(false);
+    }
+  };
 
   const handleReflectPress = async () => {
-    console.log(' Reflect button pressed');
+    console.log('Reflect button pressed');
     await saveReflection();
-    
   };
 
   return (
@@ -185,7 +266,7 @@ export default function index() {
                 style={styles.profileImage}
               />
               <Text style={styles.greeting}>
-                Hey, {getUserDisplayName()}, {"\n"}How are you doing today?
+                {"\n"}Hey, {getUserDisplayName()}, {"\n"}How are you doing today?
               </Text>
             </View>
 
@@ -218,48 +299,30 @@ export default function index() {
               </Pressable>
             </View>
 
-            {/* Mood Section
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Daily Mood Log</Text>
-              <View style={styles.moodRow}>
-                {moods.map((mood, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.moodButton,
-                      selectedMood === mood && styles.moodSelected,
-                    ]}
-                    onPress={() => setSelectedMood(mood)}
-                  >
-                    <Text style={styles.moodText}>{mood}</Text>
-                  </TouchableOpacity>
-                ))}
-               </View>
-            </View> */}
+            {/* Streak and Mood Section */}
+            <View style={styles.streakMoodContainer}>
+              <View style={styles.streakColumn}>
+                <View style={styles.streakCard}>
+                  <View style={styles.streakCardRow}>
+                    <Text style={styles.streakLabel}>Longest Streak</Text>
+                    <Text style={styles.streakValue}>
+                      <Text style={{ fontSize: 23, fontWeight: 'bold' }}>43</Text>
+                      <Text style={{ marginLeft: 2 }}>✨</Text>
+                    </Text>
+                  </View>
+                </View>
 
-            {/* Streak and Mood Section (Figma-style) */}
-        <View style={styles.streakMoodContainer}>
-  <View style={styles.streakColumn}>
-    <View style={styles.streakCard}>
-      <View style={styles.streakCardRow}>
-        <Text style={styles.streakLabel}>Longest Streak</Text>
-        <Text style={styles.streakValue}>
-          <Text style={{ fontSize: 23, fontWeight: 'bold' }}>43</Text>
-          <Text style={{ marginLeft: 2 }}>✨</Text>
-        </Text>
-      </View>
-    </View>
-
-    <View style={styles.streakCard}>
-      <View style={styles.streakCardRow}>
-        <Text style={styles.streakLabel}>Current Streak</Text>
-        <Text style={styles.streakValue}>
-          <Text style={{ fontSize: 23, fontWeight: 'bold' }}>27</Text>
-          <Text style={{ marginLeft: 2 }}>💥</Text>
-        </Text>
-      </View>
-    </View>
-  </View>
+                <View style={styles.streakCard}>
+                  <View style={styles.streakCardRow}>
+                    <Text style={styles.streakLabel}>Current Streak</Text>
+                    <Text style={styles.streakValue}>
+                      <Text style={{ fontSize: 23, fontWeight: 'bold' }}>27</Text>
+                      <Text style={{ marginLeft: 2 }}>💥</Text>
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              
               <View style={styles.moodCard}>
                 <Text style={styles.moodLabel}>Average Mood this week</Text>
                 <Text style={styles.moodEmoji}>😟</Text>
@@ -305,7 +368,7 @@ export default function index() {
             <View style={styles.overlay}>
               <View style={styles.card}>
                 <View style={styles.checkIconContainer}>
-                  <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
+                  <Icon name="checkmark-circle" size={50} color="#10B981" />
                 </View>
                 <Text style={styles.cardDate}>
                   {new Date().getDate()}{"\n"}
@@ -320,17 +383,17 @@ export default function index() {
                   style={styles.insightButton}
                   onPress={() => {
                     setShowReflectionCard(false);
-                    setShowAIInsights(true);
-                  }}
+                    generateInsights();}}
+                  disabled={insightLoading}
                 >
-                  <Text style={styles.insightButtonText}>Get insights</Text>
+                  <Text style={styles.insightButtonText}>{insightLoading ? 'Generating...' : 'Get insights'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.closeButton}
-                  onPress={() => setShowReflectionCard(true)}
+                  onPress={() => setShowReflectionCard(false)}
                 >
-                  <Icon name="close-circle" size={28} color="#999" />
+                  <Icon name="close-circle" size={28} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -341,33 +404,33 @@ export default function index() {
             <View style={styles.overlay}>
               <View style={styles.card}>
                 <TouchableOpacity
-                  style={styles.checkIconContainer}
-                  onPress={() => setShowAIInsights(false)}
-                >
-                  <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
-                </TouchableOpacity>
+                style={styles.checkIconContainer}
+                onPress={() => setShowAIInsights(false)}
+              >
+                <Icon name="checkmark-circle" size={50} color="#10B981" />
+              </TouchableOpacity>
 
-                <Text style={styles.cardDate}>
-                  {new Date().getDate()}{"\n"}
-                  {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+              <Text style={styles.cardDate}>
+                {new Date().getDate()}{"\n"}
+                {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+              </Text>
+
+              <View style={styles.aiCardBox}>
+                <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
+                <Text style={styles.aiCardText}>
+                  {aiInsight?.summary as string || 'Generating your personalized emotional summary...'}
                 </Text>
+              </View>
 
-                <View style={styles.aiCardBox}>
-                  <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
-                  <Text style={styles.aiCardText}>
-                    It sounds like you had a mixed day with some challenges but also successes. You're showing resilience & how you're handling stress.
-                  </Text>
-                </View>
-
-                <View style={styles.aiCardBoxYellow}>
-                  <Text style={styles.aiCardTitle}>🌙 Wellness Tip</Text>
-                  <Text style={styles.aiCardText}>
-                    Consider taking 5 minutes for deep breathing exercises before bed tonight to help clear your mind and prepare for restful sleep.
-                  </Text>
-                </View>
+              <View style={styles.aiCardBoxYellow}>
+                <Text style={styles.aiCardTitle}>🌙 Wellness Tip</Text>
+                <Text style={styles.aiCardText}>
+                  {aiInsight?.wellnessTip as string || 'Preparing a personalized wellness tip for you...'}
+                </Text>
               </View>
             </View>
-          )}
+          </View>
+        )} 
         </View>
       </SafeAreaView>
     </View>
@@ -377,7 +440,7 @@ export default function index() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
-    backgroundColor: '#E7B8D9',
+    backgroundColor: '#FAF6F6',
   },
   safeArea: {
     flex: 1,
@@ -407,24 +470,25 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#5F3F3F',
     flex: 1,
+
   },
   reflectionSection: {
     marginBottom: 25,
-    backgroundColor: '#F7F0F3',
+    backgroundColor: '#D8D5F0',
     borderRadius: 15,
     padding: 15,
   },
   section: {
     marginBottom: 25,
-    backgroundColor: '#FDEFF4',
+    backgroundColor: '#9791B9',
     borderRadius: 15,
     padding: 15,
   },
   affirmationSection: {
     marginBottom: 25,
-    backgroundColor: '#EDF3DD',
+    backgroundColor: '#E0E8DDDD',
     borderRadius: 15,
     padding: 15,
   },
@@ -453,7 +517,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   streakCard: {
-    backgroundColor: '#F7FCFF',
+    backgroundColor: '#F4C4B6B2',
     borderRadius: 15,
    paddingVertical: 8,
     paddingHorizontal: 12,
@@ -500,23 +564,9 @@ const styles = StyleSheet.create({
   moodEmoji: {
     fontSize: 40,
   },
-  // moodRow: {
-  //   flexDirection: 'row',
-  //   justifyContent: 'space-between',
-  // },
-  // moodButton: {
-  //   padding: 10,
-  //   borderRadius: 10,
-  // },
-  // moodSelected: {
-  //   backgroundColor: '#fff',
-  // },
-  // moodText: {
-  //   fontSize: 24,
-  // },
   reflectButton: {
     marginTop: 15,
-    backgroundColor: '#CFD9B4',
+    backgroundColor: '#9791B9',
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 10,
@@ -668,3 +718,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+// function setSavedJournalId(id: any) {
+//   throw new Error('Function not implemented.');
+// }

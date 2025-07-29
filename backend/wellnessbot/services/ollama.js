@@ -1,5 +1,5 @@
+//backend/wellnessbot/services/ollama.js
 const axios = require('axios');
-
 class OllamaService {
   constructor() {
     this.baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
@@ -335,7 +335,7 @@ class OllamaService {
 
 CORE BEHAVIOR:
 - Provide genuine, heartfelt responses that feel like talking to a caring friend
-- Listen actively and acknowledge the user's emotions with empathy
+- Listen actively and acknowledge the user's emotions with empathy based on the context they have provided earlier
 - When they say thank you, respond naturally with "You're welcome! I'm here for you" or similar
 - ALWAYS offer practical, actionable wellness tips and coping strategies
 - Maintain a warm, supportive, non-judgmental tone

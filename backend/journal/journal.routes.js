@@ -1,5 +1,4 @@
 //backend/journal/journal.routes.js
-
 const express = require('express');
 const router = express.Router();
 const {
@@ -13,4 +12,6 @@ router.post('/', createJournalEntry);
 // GET /api/journal/:firebaseUid
 router.get('/:firebaseUid', getJournalEntries);
 
+const { generateInsightHandler } = require('./insights/insight.controller');
+router.post('/insight/generate/:journalId', generateInsightHandler);
 module.exports = router;

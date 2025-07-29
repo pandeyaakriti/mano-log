@@ -5,10 +5,10 @@ const express = require('express');
 const cors = require('cors');
 const journalRoutes = require('./journal.routes');
 const { PrismaClient } = require('@prisma/client');
-
+const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT_WELLNESS || 3001;
-const prisma = new PrismaClient();
+
 
 app.use(cors());
 app.use(express.json());

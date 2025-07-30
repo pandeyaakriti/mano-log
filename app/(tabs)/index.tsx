@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
 type User = {
@@ -47,6 +48,8 @@ export default function index() {
   const [savedJournalId, setSavedJournalId] = useState<string | null>(null);
   const [aiInsight, setAiInsight] = useState<AIInsight | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const [blogText, setBlogText] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
     console.log('Current user object:', user);
@@ -301,7 +304,7 @@ export default function index() {
 
             {/* Streak and Mood Section */}
             <View style={styles.streakMoodContainer}>
-              <View style={styles.streakColumn}>
+              <View style={styles.streakRow}>
                 <View style={styles.streakCard}>
                   <View style={styles.streakCardRow}>
                     <Text style={styles.streakLabel}>Longest Streak</Text>
@@ -322,12 +325,7 @@ export default function index() {
                   </View>
                 </View>
               </View>
-              
-              <View style={styles.moodCard}>
-                <Text style={styles.moodLabel}>Average Mood this week</Text>
-                <Text style={styles.moodEmoji}>😟</Text>
               </View>
-            </View>
 
             {/* Affirmation Section */}
             <View style={styles.affirmationSection}>
@@ -336,7 +334,58 @@ export default function index() {
                 You are capable of amazing things. Every step forward, no matter how small, is progress worth celebrating.
               </Text>
             </View>
-          </ScrollView>
+            
+            {/*divider section */}
+            <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>blog sheet</Text>
+            <View style={styles.dividerLine} />
+            </View>
+
+            {/* Blog Sheet Section */}
+            <View style={styles.blogSheetSection}>
+              <View style={styles.blogSheetHeader}>
+                <Text style={styles.blogSheetTitle}> Blog Sheet</Text>
+                <View style={styles.blogLine} />
+              </View>
+              <View style={styles.blogInputWrapper}>
+                <TextInput
+                  style={styles.blogInput}
+                  placeholder="Post sheet..."
+                  placeholderTextColor="#999"
+                  multiline
+                  value={blogText}
+                  onChangeText={setBlogText}
+                />
+                <Text style={styles.blogSubtext}>Unhinged, Raw, Honest</Text>
+                <TouchableOpacity
+                  style={styles.sendIcon}
+                  onPress={() => {
+                    if (blogText.trim()) {
+                      console.log('Sending blog:', blogText);
+                      setShowConfetti(true);
+                      setBlogText('');
+                    }
+                  }}
+                >
+                  <Icon name="send" size={22} color="#AF8CAF" />
+                </TouchableOpacity>
+                
+            </View>
+            </View>
+            {showConfetti && (
+                  <ConfettiCannon
+                    count={30}
+                    origin={{ x: 300, y: 0 }}
+                    fadeOut
+                    fallSpeed={3000}
+                    explosionSpeed={500}
+                    onAnimationEnd={() => setShowConfetti(false)}
+                  />
+                )}
+              </ScrollView>
+    
+
 
           {/* Bottom Navigation */}
           <View style={styles.bottomNav}>
@@ -512,14 +561,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 25,
   },
-  streakColumn: {
-    flex: 1,
+  streakRow: {
+    flexDirection: 'row',
+    gap: 20,
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   streakCard: {
     backgroundColor: '#F4C4B6B2',
     borderRadius: 15,
-   paddingVertical: 8,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     marginBottom: 10,
     height: 70,
@@ -541,28 +592,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#000',
-  },
-  moodCard: {
-    backgroundColor: '#FFF9E5',
-    borderRadius: 15,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
-    width: 170,
-    fontWeight: 'bold',
-    minHeight: 130,
-    
-  },
-  moodLabel: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 10,
-    textAlign: 'center',
-     fontWeight: 'bold',
-  },
-  moodEmoji: {
-    fontSize: 40,
   },
   reflectButton: {
     marginTop: 15,
@@ -717,8 +746,94 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 18,
   },
+  dividerContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginVertical: 20,
+  marginHorizontal: 10,
+},
+
+dividerLine: {
+  flex: 1,
+  height: 1,
+  backgroundColor: '#AF8CAF',
+  opacity: 0.5,
+},
+
+dividerText: {
+  marginHorizontal: 10,
+  fontSize: 12,
+  fontStyle: 'italic',
+  color: '#AF8CAF',
+},
+  //blogsheet
+ blogSheetSection: {
+  backgroundColor: '#F6F0F9',
+  borderRadius: 15,
+  padding: 15,
+  marginBottom: 25,
+  marginHorizontal: 10,
+  borderWidth: 1,
+  borderColor: '#E5D0F2',
+  shadowColor: '#C2A6D3',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+  elevation: 2,
+},
+blogSheetHeader: {
+  marginBottom: 10,
+},
+blogSheetTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#5F3F3F',
+  textAlign: 'left',
+  marginBottom: 4,
+},
+blogLine: {
+  height: 2,
+  backgroundColor: '#AF8CAF',
+  borderRadius: 1,
+  width: 70,
+},
+blogInputWrapper: {
+  backgroundColor: '#E4DDEA',
+  borderRadius: 12,
+  padding: 12,
+  position: 'relative',
+  minHeight: 90,
+  marginTop: 5,
+  shadowColor: '#BBAACD',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 3,
+  elevation: 1,
+},
+blogInput: {
+  fontSize: 15,
+  minHeight: 60,
+  color: '#333',
+  paddingRight: 40,
+  lineHeight: 22,
+},
+blogSubtext: {
+  fontSize: 12,
+  color: '#7F7F7F',
+  marginTop: 6,
+},
+sendIcon: {
+  position: 'absolute',
+  bottom: 15,
+  right: 15,
+  backgroundColor: '#F6F0F9',
+  borderRadius: 20,
+  padding: 6,
+  shadowColor: '#AF8CAF',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+  elevation: 1,
+},
 });
 
-// function setSavedJournalId(id: any) {
-//   throw new Error('Function not implemented.');
-// }

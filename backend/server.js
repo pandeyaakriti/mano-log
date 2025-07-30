@@ -1,6 +1,7 @@
 require('dotenv').config({ path: '../.env' });
 const chatRouter = require('./wellnessbot/routes/chat');
 const moodRoutes = require('./moodtrack/moodRoutes'); // Add this line
+const trendsRoutes = require('./trends/trendsRoutes'); // Add trends routes
 
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
@@ -33,7 +34,8 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/chat', chatRouter);
-app.use('/api/moodtrack', moodRoutes); // Add this line
+app.use('/api/moodtrack', moodRoutes); 
+app.use('/api/trends', trendsRoutes); // Use trends routes
 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {

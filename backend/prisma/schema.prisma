@@ -7,33 +7,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-// User model
-
+// User model with streak tracking
 model User {
-  id             String         @id @default(auto()) @map("_id") @db.ObjectId
-  firebaseUid    String         @unique
-  email          String         @unique
-  username       String?        
-  displayName    String?
-  phone          String?       
-  emailVerified  Boolean?       
-  lastLogin      DateTime? 
-  photoURL       String?
-  timezone       String         @default("UTC")
-  journalEntries JournalEntry[]
-  moodEntries    MoodEntry[]
-  chatMessages   ChatMessage[]
-  moodSummaries  MoodSummary[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                String         @id @default(auto()) @map("_id") @db.ObjectId
+  firebaseUid       String         @unique
+  email             String         @unique
+  username          String?        
+  displayName       String?
+  phone             String?       
+  emailVerified     Boolean?       
+  lastLogin         DateTime? 
+  photoURL          String?
+  timezone          String         @default("UTC")
+  currentStreak     Int            @default(0)    // New field for current streak
+  longestStreak     Int            @default(0)    // New field for longest streak
+  lastMoodDate      DateTime?                     // New field to track last mood entry date
+  journalEntries    JournalEntry[]
+  moodEntries       MoodEntry[]
+  chatMessages      ChatMessage[]
+  moodSummaries     MoodSummary[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
   
   @@map("users")
 }
 
-
 // Journal entries
-
 model JournalEntry {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -50,9 +49,7 @@ model JournalEntry {
   @@map("journal_entries")
 }
 
-
 // Mood entries
-
 model MoodEntry {
   id         String     @id @default(auto()) @map("_id") @db.ObjectId
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -66,16 +63,14 @@ model MoodEntry {
   @@map("mood_entries")
 }
 
-
 // AI Insight for Journal
-
 model AIInsight {
   id          String        @id @default(auto()) @map("_id") @db.ObjectId
   journal     JournalEntry  @relation(fields: [journalId], references: [id], onDelete: Cascade)
   journalId   String        @unique @db.ObjectId
   summary     String
   wellnessTip String
-  modelUsed   String        @default("gpt-3.5-turbo")
+  modelUsed   String        @default("ollama")
   tokensUsed  Int           @default(0)
   confidence  Float         @default(0.0)
   createdAt   DateTime      @default(now())
@@ -83,9 +78,7 @@ model AIInsight {
   @@map("ai_insights")
 }
 
-
 // Chat messages with AI
-
 model ChatMessage {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -100,9 +93,7 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
-
 // Mood Summary
-
 model MoodSummary {
   id              String      @id @default(auto()) @map("_id") @db.ObjectId
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -120,10 +111,7 @@ model MoodSummary {
   @@map("mood_summaries")
 }
 
-
 // ENUMS
-
-
 enum MoodType {
   HAPPY
   CALM

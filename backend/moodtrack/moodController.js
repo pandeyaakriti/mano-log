@@ -1,5 +1,6 @@
 // backend/moodtrack/moodController.js
 const { PrismaClient } = require('@prisma/client');
+const { updateUserStreak } = require('../trends/trendsHelper');
 const prisma = new PrismaClient();
 
 // Create a new mood entry
@@ -102,6 +103,15 @@ const createMoodEntry = async (req, res) => {
 
           console.log('Mood entry created successfully:', moodEntry.id);
 
+          // Update user streak (new functionality)
+          try {
+            const streakInfo = await updateUserStreak(correctedUserId);
+            console.log('Streak updated:', streakInfo);
+          } catch (streakError) {
+            console.error('Error updating streak:', streakError);
+            // Don't fail the whole request if streak update fails
+          }
+
           return res.status(201).json({
             success: true,
             data: moodEntry,
@@ -141,6 +151,15 @@ const createMoodEntry = async (req, res) => {
     });
 
     console.log('Mood entry created successfully:', moodEntry.id); // Debug log
+
+    // Update user streak (new functionality)
+    try {
+      const streakInfo = await updateUserStreak(userId);
+      console.log('Streak updated:', streakInfo);
+    } catch (streakError) {
+      console.error('Error updating streak:', streakError);
+      // Don't fail the whole request if streak update fails
+    }
 
     res.status(201).json({
       success: true,

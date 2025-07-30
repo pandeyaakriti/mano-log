@@ -14,5 +14,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "app/(tabs)/trends.tsx", "app/auth/signup.jsx", "app/auth/login.jsx"  ]
+, "app/(tabs)/trends.tsx", "app/auth/signup.jsx", "app/auth/login.jsx", "backend/moodtrack/trendsRoutes.js"  ]
 }

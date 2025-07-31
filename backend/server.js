@@ -1,5 +1,9 @@
 //backend/server.js
 require('dotenv').config({ path: '../.env' });
+const chatRouter = require('./wellnessbot/routes/chat');
+const moodRoutes = require('./moodtrack/moodRoutes'); // Add this line
+const trendsRoutes = require('./trends/trendsRoutes'); // Add trends routes
+
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
@@ -43,13 +47,10 @@ app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString(), service:'mano-log' });
 });
 
+// Routes
 app.use('/api/chat', chatRouter);
-app.use ('/api/journal', journalRoutes);
-
-//check if journal routes is working
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API is working!', timestamp: new Date() });
-});
+app.use('/api/moodtrack', moodRoutes); 
+app.use('/api/trends', trendsRoutes); // Use trends routes
 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {
@@ -64,6 +65,47 @@ app.get('/api/users/:firebaseUid', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get user by Firebase UID (alternative endpoint format)
+app.get('/api/users/by-firebase/:firebaseUid', async (req, res) => {
+  try {
+    const { firebaseUid } = req.params;
+    if (!firebaseUid) return res.status(400).json({ 
+      success: false,
+      error: 'firebaseUid is required' 
+    });
+
+    const user = await prisma.user.findUnique({ 
+      where: { firebaseUid },
+      select: {
+        id: true,
+        firebaseUid: true,
+        email: true,
+        displayName: true,
+        username: true,
+        emailVerified: true,
+        lastLogin: true
+      }
+    });
+    
+    if (!user) return res.status(404).json({ 
+      success: false,
+      error: 'User not found' 
+    });
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('Error fetching user by firebase UID:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 });
 
@@ -178,6 +220,80 @@ app.delete('/api/users/:firebaseUid', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Test user creation endpoint
+app.post('/api/moodtrack/test-user', async (req, res) => {
+  try {
+    const testUser = await prisma.user.create({
+      data: {
+        firebaseUid: 'test-firebase-uid-' + Date.now(),
+        email: `test${Date.now()}@example.com`,
+        displayName: 'Test User',
+        username: 'testuser' + Date.now(),
+        emailVerified: true,
+        lastLogin: new Date(),
+        createdAt: new Date()
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Test user created successfully',
+      data: testUser
+    });
+  } catch (error) {
+    console.error('Error creating test user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create test user',
+      details: error.message
+    });
+  }
+});
+
+// User validation endpoint  
+app.get('/api/moodtrack/validate-user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Simple MongoDB ObjectId validation
+    if (!/^[0-9a-fA-F]{24}$/.test(userId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID format'
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+
+  } catch (error) {
+    console.error('Error validating user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
   }
 });
 

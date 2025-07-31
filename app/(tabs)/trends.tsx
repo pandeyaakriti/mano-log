@@ -1,8 +1,10 @@
 //@ts-ignore
 //@ts-nocheck
+import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Image,
@@ -113,7 +115,7 @@ interface MoodStats {
 
 // Enhanced API functions
 const trendsApi = {
-  getWeeklyTrends: async (userId: string, algorithm: string = 'latest'): Promise<{ success: boolean; data: WeeklyTrendData[] }> => {
+  getWeeklyTrends: async (userId: string, algorithm: string = 'mostFrequent'): Promise<{ success: boolean; data: WeeklyTrendData[] }> => {
     try {
       const token = await getAuthToken();
       
@@ -492,7 +494,7 @@ export default function MoodTrendsUI() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isOfflineMode, setIsOfflineMode] = useState(false);
-  const [algorithm, setAlgorithm] = useState('latest'); // NEW: Algorithm selection
+  const [algorithm, setAlgorithm] = useState('mostFrequent'); // Default algorithm
   
   // Authentication state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -506,6 +508,19 @@ export default function MoodTrendsUI() {
   const [moodStats, setMoodStats] = useState<MoodStats>(fallbackMoodStats);
 
   // Initialize authentication
+  useFocusEffect(
+    useCallback(() => {
+      if (!isInitializing && currentUserId && authUser) {
+        console.log('Trends tab focused - refreshing data...');
+        loadData();
+      } else if (!isInitializing && !currentUserId) {
+        setLoading(false);
+        setError('Please log in to view your mood trends');
+      }
+    }, [currentUserId, authUser, isInitializing, algorithm])
+  );
+
+  // Keep your authentication useEffect separate since it should only run once
   useEffect(() => {
     const initializeUser = async () => {
       console.log('Initializing user authentication for trends...');
@@ -738,7 +753,7 @@ export default function MoodTrendsUI() {
           )}
 
           {/* NEW: Algorithm Selection */}
-          <View style={styles.algorithmContainer}>
+          {/* <View style={styles.algorithmContainer}>
             <Text style={styles.algorithmLabel}>Aggregation Method:</Text>
             <View style={styles.algorithmRow}>
               {['latest', 'mostFrequent', 'weightedAverage', 'dominantMood'].map((alg) => (
@@ -761,7 +776,7 @@ export default function MoodTrendsUI() {
                algorithm === 'weightedAverage' ? 'Calculates average based on intensity and time' :
                'Shows mood with highest combined frequency and intensity'}
             </Text>
-          </View>
+          </View> */}
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>

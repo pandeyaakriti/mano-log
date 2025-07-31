@@ -213,7 +213,7 @@ const formatWeekLabel = (startDate) => {
 };
 
 // Enhanced function to aggregate multiple mood entries per day
-const aggregateDailyMoods = (moodEntries, algorithm = 'latest') => {
+const aggregateDailyMoods = (moodEntries, algorithm = 'mostFrequent') => {
   const dailyMoods = {};
   
   // Group mood entries by day
@@ -301,7 +301,7 @@ const getWeekBoundariesPastOnly = (date) => {
 const getWeeklyTrends = async (req, res) => {
   try {
     const { userId } = req.user;
-    const algorithm = req.query.algorithm || 'latest';
+    const algorithm = req.query.algorithm || 'mostFrequent'; 
     
     if (!MoodAggregationAlgorithms[algorithm]) {
       return res.status(400).json({
@@ -486,7 +486,7 @@ const getWeeklyTrends = async (req, res) => {
 const getMonthlyTrends = async (req, res) => {
   try {
     const { userId } = req.user;
-    const algorithm = req.query.algorithm || 'latest';
+    const algorithm = req.query.algorithm || 'mostFrequent'; // Default to dominantMood if not specified
     
     console.log('Getting monthly trends for user:', userId, 'using algorithm:', algorithm);
     
@@ -596,10 +596,11 @@ const getMonthlyTrends = async (req, res) => {
   }
 };
 // Enhanced mood statistics with better algorithms
+// Enhanced mood statistics with better algorithms - FIXED VERSION
 const getMoodStats = async (req, res) => {
   try {
     const { userId } = req.user;
-    const algorithm = req.query.algorithm || 'latest';
+    const algorithm = req.query.algorithm || 'mostFrequent';
     
     console.log('Getting mood stats for user:', userId, 'using algorithm:', algorithm);
     
@@ -636,34 +637,43 @@ const getMoodStats = async (req, res) => {
     
     console.log(`Found ${weekMoods.length} mood entries this week`);
     
-    // Method 1: Get average mood using aggregation algorithm
+    // Get aggregated daily moods using selected algorithm
     const dailyMoods = aggregateDailyMoods(weekMoods, algorithm);
     const weeklyMoodEntries = Object.values(dailyMoods);
     
-    // Method 2: Also get average considering ALL entries (not just aggregated)
+    // Count ALL moods for mood count display
     const allMoodCounts = countAllMoodsInPeriod(weekMoods);
     
-    // Calculate statistics using aggregated daily moods
+    // FIXED: Calculate most frequent mood from aggregated daily moods
     let mostFrequentMood = 'CALM';
     let avgMoodIndex = 1;
     
     if (weeklyMoodEntries.length > 0) {
+      // Count frequency of each mood type from aggregated daily entries
       const moodCounts = {};
       let moodSum = 0;
       
       weeklyMoodEntries.forEach(entry => {
-        moodCounts[entry.moodType] = (moodCounts[entry.moodType] || 0) + 1;
-        moodSum += moodTypeToIndex[entry.moodType] || 1;
+        const moodType = entry.moodType;
+        moodCounts[moodType] = (moodCounts[moodType] || 0) + 1;
+        moodSum += moodTypeToIndex[moodType] || 1;
       });
       
+      console.log('Aggregated daily mood counts:', moodCounts);
+      
+      // Find the most frequent mood from aggregated daily entries
       mostFrequentMood = Object.keys(moodCounts).reduce((a, b) => 
         moodCounts[a] > moodCounts[b] ? a : b
       );
       
+      // Calculate average mood index from aggregated daily entries
       avgMoodIndex = Math.round(moodSum / weeklyMoodEntries.length);
+      
+      console.log('Most frequent mood (aggregated):', mostFrequentMood);
+      console.log('Average mood index (aggregated):', avgMoodIndex);
     }
     
-    // Calculate most frequent mood from ALL entries
+    // OPTIONAL: Also calculate most frequent from ALL individual entries for comparison
     let mostFrequentMoodOverall = 'CALM';
     if (allMoodCounts.totalEntries > 0) {
       let maxCount = 0;
@@ -677,6 +687,7 @@ const getMoodStats = async (req, res) => {
       });
       
       mostFrequentMoodOverall = indexToMoodType[maxIndex] || 'CALM';
+      console.log('Most frequent mood (all entries):', mostFrequentMoodOverall);
     }
     
     // Get additional statistics
@@ -696,16 +707,17 @@ const getMoodStats = async (req, res) => {
     const stats = {
       longestStreak: user.longestStreak || 0,
       currentStreak: user.currentStreak || 0,
-      avgMoodThisWeek: mostFrequentMood,
-      avgMoodIndex: avgMoodIndex,
+      avgMoodThisWeek: mostFrequentMood, // FIXED: This now correctly shows the most frequent aggregated daily mood
+      avgMoodIndex: moodTypeToIndex[mostFrequentMood] || 1, // FIXED: Use the index of the most frequent mood
       algorithm: algorithm,
       weeklyStats: {
-        totalEntriesThisWeek: weekMoods.length,
-        daysWithMoodsThisWeek: weeklyMoodEntries.length,
+        totalEntriesThisWeek: weekMoods.length, // All individual entries
+        daysWithMoodsThisWeek: weeklyMoodEntries.length, // Days with aggregated moods
         averageEntriesPerDay: weeklyMoodEntries.length > 0 
           ? Math.round(weekMoods.length / weeklyMoodEntries.length * 10) / 10 
           : 0,
-        mostFrequentMoodOverall: mostFrequentMoodOverall, // Based on all entries
+        mostFrequentMoodOverall: mostFrequentMoodOverall, // Based on all individual entries
+        mostFrequentMoodAggregated: mostFrequentMood, // Based on aggregated daily moods
         allMoodCountsThisWeek: allMoodCounts.counts
       },
       overallStats: {
@@ -714,10 +726,18 @@ const getMoodStats = async (req, res) => {
         averageEntriesPerDay: daysSinceFirstEntry > 0 
           ? Math.round(totalMoodEntries / daysSinceFirstEntry * 10) / 10 
           : 0
+      },
+      debug: {
+        weeklyMoodEntries: weeklyMoodEntries.map(e => ({ mood: e.moodType, date: e.createdAt })),
+        aggregationAlgorithm: algorithm
       }
     };
     
-    console.log('Returning mood stats:', stats);
+    console.log('Returning mood stats:', {
+      avgMoodThisWeek: stats.avgMoodThisWeek,
+      avgMoodIndex: stats.avgMoodIndex,
+      totalDaysWithMoods: weeklyMoodEntries.length
+    });
     
     res.json({
       success: true,
@@ -733,7 +753,6 @@ const getMoodStats = async (req, res) => {
     });
   }
 };
-
 // Helper function to get color for mood index (matching your frontend)
 const getColorForMoodIndex = (index) => {
   const colors = [

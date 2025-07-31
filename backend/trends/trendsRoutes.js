@@ -102,7 +102,7 @@ router.get('/stats/:userId', extractUserId, validateAlgorithm, getMoodStats);
 router.get('/summary/:userId', extractUserId, validateAlgorithm, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const algorithm = req.query.algorithm || 'latest';
+    const algorithm = req.query.algorithm || 'mostFrequent'; // Default to dominantMood if not specified
 
     console.log(`Getting comprehensive trends summary for user: ${userId} using algorithm: ${algorithm}`);
 
@@ -191,7 +191,7 @@ router.get('/distribution/:userId', extractUserId, async (req, res) => {
   try {
     const userId = req.user.userId;
     const days = parseInt(req.query.days) || 30;
-    const strategy = req.query.strategy || 'latest';
+    const strategy = req.query.strategy || 'mostFrequent'; // Default to mostFrequent if not specified
 
     const endDate = new Date();
     const startDate = new Date();
@@ -258,7 +258,7 @@ router.post('/generate-summary/:userId', extractUserId, async (req, res) => {
           periodType: 'WEEK', // or 'MONTH'
           startDate: '2024-01-01T00:00:00.000Z',
           endDate: '2024-01-07T23:59:59.999Z',
-          strategy: 'latest' // optional
+          strategy: 'mostFrequent' // optional
         }
       });
     }
@@ -268,7 +268,7 @@ router.post('/generate-summary/:userId', extractUserId, async (req, res) => {
       periodType,
       new Date(startDate),
       new Date(endDate),
-      strategy || 'latest'
+      strategy || 'mostFrequent' 
     );
 
     res.json({

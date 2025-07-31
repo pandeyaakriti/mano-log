@@ -15,6 +15,7 @@ import {
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
+import DailyAffirmation from '../components/affirmations/dailyAffirmation';
 type User = {
   mongoId?: string;
   firebaseUid?: string;
@@ -327,13 +328,16 @@ export default function index() {
               </View>
               </View>
 
-            {/* Affirmation Section */}
+            {/* Affirmation Section
             <View style={styles.affirmationSection}>
               <Text style={styles.sectionTitle}>Daily Words of affirmations</Text>
               <Text style={styles.affirmationContent}>
                 You are capable of amazing things. Every step forward, no matter how small, is progress worth celebrating.
               </Text>
-            </View>
+            </View> */}
+
+            {/*daily affirmation */}
+            <DailyAffirmation user= {user} selectedMood= {selectedMood || undefined} currentStreak={27} />
             
             {/*divider section */}
             <View style={styles.dividerContainer}>

@@ -7,7 +7,7 @@ const trendsRoutes = require('./trends/trendsRoutes'); // Add trends routes
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
-const chatRouter = require('./wellnessbot/routes/chat');
+
 const journalRoutes = require('./journal/journal.routes');
 
 const app = express();

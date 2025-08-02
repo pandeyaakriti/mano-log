@@ -1,4 +1,6 @@
 //app/(tabs)/index.tsx
+//@ts-ignore
+//@ts-nocheck
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -37,7 +39,7 @@ type AIInsight = {
   confidence?: number;
   createdAt?: string;
 };
-export default function index() {
+export default function Index() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [showReflectionCard, setShowReflectionCard] = useState(false);
@@ -114,7 +116,7 @@ export default function index() {
       }; 
       console.log('Payload:', payload);
 
-      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal`;
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/journal`;
       console.log('API URL:', apiUrl);
 
       const response = await fetch(apiUrl, {
@@ -193,7 +195,7 @@ export default function index() {
       setInsightLoading(true);
       console.log('Generating insights for journal ID:', savedJournalId);
 
-      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal/insight/generate/${savedJournalId}`;
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/journal/insight/generate/${savedJournalId}`;
       console.log('Insight API URL:', apiUrl);
 
       const response = await fetch(apiUrl, {

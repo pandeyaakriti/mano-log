@@ -34,7 +34,7 @@ const EMOJIS = [
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // API configuration
-const API_BASE_URL = 'http://192.168.137.1:5000/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
 // Auth helper functions
 const getAuthToken = async (): Promise<string | null> => {

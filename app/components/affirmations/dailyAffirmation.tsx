@@ -1,18 +1,19 @@
+//app/components/affirmation/dailyAffirmation.tsx
 import React, { useEffect, useState } from 'react';
 import {
-    Alert,
-    Animated,
-    Easing,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
-    getMoodBasedAffirmation,
-    getPersonalizedDailyAffirmation,
-    getStreakMotivation
+  getMoodBasedAffirmation,
+  getPersonalizedDailyAffirmation,
+  getStreakMotivation
 } from './affirmationData';
 import type { AffirmationState, User } from './types';
 

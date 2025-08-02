@@ -3,12 +3,13 @@ require('dotenv').config({ path: '../.env' });
 const chatRouter = require('./wellnessbot/routes/chat');
 const moodRoutes = require('./moodtrack/moodRoutes'); // Add this line
 const trendsRoutes = require('./trends/trendsRoutes'); // Add trends routes
+const journalRoutes = require('./journal/journal.routes');
+const blogRoutes= require('./blogSheet/blog.routes');
 
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 
-const journalRoutes = require('./journal/journal.routes');
 
 const app = express();
 const PORT = process.env.PORT_ROOT || 5000;
@@ -52,7 +53,7 @@ app.use('/api/chat', chatRouter);
 app.use('/api/moodtrack', moodRoutes); 
 app.use('/api/trends', trendsRoutes); // Use trends routes
 app.use('/api/journal', journalRoutes);
-
+app.use('/api/blogsheet', blogRoutes); 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {
   try {

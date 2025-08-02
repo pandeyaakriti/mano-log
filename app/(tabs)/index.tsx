@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
 import DailyAffirmation from '../components/affirmations/dailyAffirmation';
@@ -260,6 +261,133 @@ export default function Index() {
     await saveReflection();
   };
 
+ //blogpost 
+const saveBlogPost = async () => {
+  console.log('Debug - saveBlogPost called');
+  console.log('Debug - blogText state:', blogText);
+  console.log('Debug - blogText length:', blogText.length);
+  
+  const firebaseUid = getUserFirebaseUid();
+  console.log('Debug - resolved firebaseUid:', firebaseUid);
+
+  if (!user) {
+    console.log('No user found');
+    Alert.alert('Authentication Error', 'User not found. Please login again.');
+    return;
+  }
+
+  if (!firebaseUid) {
+    console.log('No firebaseUid found in user object');
+    Alert.alert('Authentication Error', 'User ID not found. Please logout and login again.');
+    return;
+  }
+
+  if (!blogText.trim()) {
+    console.log('Blog text is empty or only whitespace');
+    Alert.alert('Validation Error', 'Please write something before posting.');
+    return;
+  }
+
+  try {
+    setIsLoading(true);
+    console.log('Saving blog post for user:', firebaseUid);
+    
+    const payload = {
+      firebaseUid: firebaseUid,
+      textContent: blogText.trim(),
+      tags: [] // Add tags if needed
+    };
+    console.log('Blog payload:', payload);
+
+    const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/blogsheet`;
+    console.log('Blog API URL:', apiUrl);
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json' 
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    console.log('Blog response status:', response.status);
+    console.log('Blog response ok:', response.ok);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Blog error response:', errorText);
+      
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { error: errorText };
+      }
+
+      Alert.alert(
+        'Post Failed', 
+        `Failed to save blog post: ${errorData.error || 'Unknown error'}`
+      );
+      return;
+    }
+
+    const data = await response.json();
+    console.log('Blog response data:', data);
+    console.log('Blog post saved successfully:', data);
+    
+    // Show success feedback
+    setShowConfetti(true);
+    Alert.alert('Success', 'Blog post saved successfully!');
+    setBlogText(''); // Clear the input
+
+  } catch (err) {
+    console.error('Blog API error:', err);
+    
+    let errorMessage = 'Error saving blog post. Please try again.';
+    
+    if ((err as Error).message === 'Network request failed') {
+      errorMessage = 'Network error: Cannot connect to server. Please check your internet connection.';
+    } else if ((err as Error).name === 'TypeError') {
+      errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+    }
+    Alert.alert('Network Error', errorMessage);
+  } finally {
+    setIsLoading(false);
+  }
+};
+<Svg height="700" width="100%" viewBox="0 70 1440 320" style={styles.svg}>
+  <Defs>
+    <SvgGradient id="waveGradient" x1="0%" y1="80%" x2="100%" y2="20%" gradientTransform="rotate(45)">
+      <Stop offset="18%" stopColor="#9791B9" />
+      <Stop offset="51%" stopColor="#DDA8D6" />
+      <Stop offset="52%" stopColor="#E0ACD8" />
+      <Stop offset="70%" stopColor="#F8D3EF" />
+      <Stop offset="100%" stopColor="#FFF9D3" />
+    </SvgGradient>
+  </Defs>
+  <Path
+    fill="url(#waveGradient)"
+    d="
+      M0,-700 H1440 V64 L1380,64 
+      C1320,64 1200,64 1080,64 
+      C960,64 840,64 720,64 
+      C600,64 480,64 360,64 
+      C240,64 120,64 60,64 
+      L0,64 
+      L0,0 
+      Z
+      M0,64
+      L63,120
+      C120,170,240,240,360,230
+      C480,220,600,160,720,140
+      C840,120,960,140,1080,170
+      C1200,200,1320,240,1380,260
+      L1440,280
+      L1440,64
+    "
+  />
+</Svg>
   return (
     <View style={styles.gradient}>
       <SafeAreaView style={styles.safeArea}>
@@ -288,6 +416,7 @@ export default function Index() {
                 style={styles.textInput}
                 multiline
                 numberOfLines={4}
+                placeholderTextColor='#A38CBC'
               />
               <Pressable
                 style={[
@@ -330,14 +459,6 @@ export default function Index() {
               </View>
               </View>
 
-            {/* Affirmation Section
-            <View style={styles.affirmationSection}>
-              <Text style={styles.sectionTitle}>Daily Words of affirmations</Text>
-              <Text style={styles.affirmationContent}>
-                You are capable of amazing things. Every step forward, no matter how small, is progress worth celebrating.
-              </Text>
-            </View> */}
-
             {/*daily affirmation */}
             <DailyAffirmation user= {user} selectedMood= {selectedMood || undefined} currentStreak={27} />
             
@@ -366,13 +487,8 @@ export default function Index() {
                 <Text style={styles.blogSubtext}>Unhinged, Raw, Honest</Text>
                 <TouchableOpacity
                   style={styles.sendIcon}
-                  onPress={() => {
-                    if (blogText.trim()) {
-                      console.log('Sending blog:', blogText);
-                      setShowConfetti(true);
-                      setBlogText('');
-                    }
-                  }}
+                  onPress= {saveBlogPost}
+                  
                 >
                   <Icon name="send" size={22} color="#AF8CAF" />
                 </TouchableOpacity>
@@ -493,6 +609,15 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
+  svg: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  zIndex: -1,
+  width: '100%',
+  height: '100%',
+},
   gradient: {
     flex: 1,
     backgroundColor: '#FAF6F6',
@@ -511,8 +636,14 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 20,
+    paddingHorizontal: 10,
+    position: 'relative',
+  },
+  greetingContainer: {
+    flex: 1,
   },
   profileImage: {
     width: 60,
@@ -531,7 +662,7 @@ const styles = StyleSheet.create({
   },
   reflectionSection: {
     marginBottom: 25,
-    backgroundColor: '#D8D5F0',
+    backgroundColor: '#F7F0F3',
     borderRadius: 15,
     padding: 15,
   },
@@ -543,7 +674,7 @@ const styles = StyleSheet.create({
   },
   affirmationSection: {
     marginBottom: 25,
-    backgroundColor: '#E0E8DDDD',
+    backgroundColor: '#E0E8DD',
     borderRadius: 15,
     padding: 15,
   },
@@ -551,6 +682,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
+    textAlign:'center',
+    color:'#78549E'
   },
   textInput: {
     backgroundColor: '#fff',
@@ -574,7 +707,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   streakCard: {
-    backgroundColor: '#F4C4B6B2',
+    backgroundColor: '#D8D5F0',
     borderRadius: 15,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -774,7 +907,7 @@ dividerText: {
 },
   //blogsheet
  blogSheetSection: {
-  backgroundColor: '#F6F0F9',
+  backgroundColor: '#E4E5E6',
   borderRadius: 15,
   padding: 15,
   marginBottom: 25,
@@ -808,7 +941,7 @@ blogInputWrapper: {
   borderRadius: 12,
   padding: 12,
   position: 'relative',
-  minHeight: 90,
+  minHeight: 80,
   marginTop: 5,
   shadowColor: '#BBAACD',
   shadowOffset: { width: 0, height: 2 },

@@ -30,6 +30,7 @@ model User {
   updatedAt         DateTime       @updatedAt
   
   @@map("users")
+  blogEntry blogEntry[]
 }
 
 // Journal entries
@@ -47,6 +48,22 @@ model JournalEntry {
   
   @@index([userId, entryDate])
   @@map("journal_entries")
+}
+
+// Blog entries
+model blogEntry {
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String       @db.ObjectId
+  textContent String
+  entryDate   DateTime     @default(now())
+  wordCount   Int          @default(0)
+  tags        String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@index([userId, entryDate])
+  @@map("blog_entries")
 }
 
 // Mood entries

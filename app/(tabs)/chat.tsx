@@ -1,4 +1,5 @@
 import { Ionicons as Icon } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -30,7 +31,7 @@ interface AiChatProps {
 
 // Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-const USER_ID = '687e20b9b70ab925bc788b26';
+const USER_ID = '68765c002f7447e179e0eafd';
 const { height: screenHeight } = Dimensions.get('window');
 
 export default function AiChat({ navigation }: AiChatProps) {
@@ -285,27 +286,33 @@ export default function AiChat({ navigation }: AiChatProps) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.headerButton} 
-          onPress={() => navigation?.goBack()}
-          activeOpacity={0.7}
-        >
-          <Icon name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Wellness Bot</Text>
-          <ConnectionStatus />
-        </View>
-        <TouchableOpacity 
-          style={styles.headerButton} 
-          onPress={handleRetryConnection}
-          activeOpacity={0.7}
-        >
-          <Icon name="refresh" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <LinearGradient
+  colors={['#EFB7D4', '#CBB1E0']}
+  start={{ x: 0, y: 0 }}
+  end={{ x: 1, y: 1 }}
+  style={styles.header}
+>
+  <TouchableOpacity 
+    style={styles.headerButton} 
+    onPress={() => navigation?.goBack()}
+    activeOpacity={0.7}
+  >
+    <Icon name="arrow-back" size={24} color="#fff" />
+  </TouchableOpacity>
+
+  <View style={styles.headerCenter}>
+    <Text style={styles.headerTitle}>Wellness Bot</Text>
+    <ConnectionStatus />
+  </View>
+
+  <TouchableOpacity 
+    style={styles.headerButton} 
+    onPress={handleRetryConnection}
+    activeOpacity={0.7}
+  >
+    <Icon name="refresh" size={24} color="#000" />
+  </TouchableOpacity>
+</LinearGradient>
 
       {/* Chat + Input */}
       <KeyboardAvoidingView
@@ -381,19 +388,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F0D4D6',
   },
-  header: {
-    backgroundColor: '#D5AABF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    height: 60,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
+ header: {
+  height: 70,
+  paddingHorizontal: 15,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+},
   headerButton: {
     width: 40,
     height: 40,
@@ -406,7 +407,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#fff',
     fontWeight: 'bold',
   },
@@ -456,13 +457,13 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   userBubble: {
-    backgroundColor: '#B9A9D1',
+    backgroundColor: '#E4DDE8',
   },
   undeliveredBubble: {
     opacity: 0.7,
   },
   botBubble: {
-    backgroundColor: '#F7F1F3',
+    backgroundColor: '#D8D5F0',
   },
   messageText: {
     fontSize: 16,

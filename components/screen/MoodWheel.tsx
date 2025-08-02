@@ -73,7 +73,7 @@ export default function MoodWheel() {
             
             // Fetch the user's database record using Firebase UID
             try {
-              const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUser.uid}`);
+              const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users/by-firebase/${firebaseUser.uid}`);
               console.log('User lookup response status:', response.status);
               
               if (response.ok) {
@@ -113,25 +113,6 @@ export default function MoodWheel() {
 
         return () => unsubscribe();
 
-        // Method 2: Using Custom Auth Context (uncomment if using custom auth)
-        /*
-        const { user, isAuthenticated } = useAuth();
-        
-        if (isAuthenticated && user) {
-          if (user.id) {
-            // If you already have the database user ID
-            setCurrentUserId(user.id);
-            console.log('Using user ID from auth context:', user.id);
-          } else if (user.firebaseUid) {
-            // If you have Firebase UID, fetch the database user ID
-            await fetchUserByFirebaseUid(user.firebaseUid);
-          }
-        } else {
-          setError('Please log in to use the mood tracker');
-        }
-        setIsInitializing(false);
-        */
-
       } catch (error) {
         console.error('Error during user initialization:', error);
         setError(`Authentication error: ${error.message}`);
@@ -146,7 +127,7 @@ export default function MoodWheel() {
   const createUserInDatabase = async (firebaseUser) => {
     try {
       console.log('Creating user in database...');
-      const response = await fetch('http://192.168.137.1:5000/api/users', {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +162,7 @@ export default function MoodWheel() {
   // Helper function to fetch user by Firebase UID
   const fetchUserByFirebaseUid = async (firebaseUid) => {
     try {
-      const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUid}`);
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users/by-firebase/${firebaseUid}`);
       
       if (response.ok) {
         const userData = await response.json();

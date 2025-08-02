@@ -1,30 +1,22 @@
+//backend/wellnessbot/server.js
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 require('dotenv').config();
-
 const app = express();
-
-
 const PORT = process.env.PORT_WELLNESS || 3001;
-
-
-
-
 // Middleware
 app.use(cors());
 app.use(express.json());
 
 // In-memory storage for chat messages (replace with database later)
 const chatHistory = {};
-
 // Simple Ollama service
 class SimpleChatService {
   constructor() {
     this.baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-    this.model = process.env.OLLAMA_MODEL || 'gemma:2b';
+    this.model = process.env.OLLAMA_MODEL || 'vortex/helpingai-9b';
   }
-
   async generateResponse(userMessage) {
     try {
       const systemPrompt = `You are a compassionate wellness assistant. Your role is to:
@@ -38,7 +30,6 @@ class SimpleChatService {
 Remember: You're here to listen and support, not to diagnose or treat.`;
 
       const fullPrompt = `${systemPrompt}\n\nUser: ${userMessage}\n\nAssistant:`;
-
       const response = await axios.post(`${this.baseURL}/api/generate`, {
         model: this.model,
         prompt: fullPrompt,
@@ -49,7 +40,6 @@ Remember: You're here to listen and support, not to diagnose or treat.`;
           max_tokens: 200,
         }
       });
-
       return {
         success: true,
         response: response.data.response.trim()
@@ -69,15 +59,12 @@ Remember: You're here to listen and support, not to diagnose or treat.`;
     if (lowerMessage.includes('stress') || lowerMessage.includes('anxious')) {
       return "I understand you're feeling stressed. Try taking a few deep breaths with me. Would you like to share what's causing this stress?";
     }
-    
     if (lowerMessage.includes('sad') || lowerMessage.includes('down')) {
       return "I'm here for you during this difficult time. It's okay to feel sad sometimes. Would you like to talk about what's on your mind?";
     }
-    
     if (lowerMessage.includes('happy') || lowerMessage.includes('good')) {
       return "It's wonderful to hear you're feeling good! What's bringing you joy today?";
     }
-    
     return "I'm here to listen and support you. Can you tell me a bit more about how you're feeling right now?";
   }
 
@@ -97,7 +84,6 @@ Remember: You're here to listen and support, not to diagnose or treat.`;
     }
   }
 }
-
 const chatService = new SimpleChatService();
 
 // Routes
@@ -115,12 +101,10 @@ app.post('/api/chat/message', async (req, res) => {
         error: 'userId and message are required' 
       });
     }
-
     // Initialize chat history for user if not exists
     if (!chatHistory[userId]) {
       chatHistory[userId] = [];
     }
-
     // Create user message
     const userMessage = {
       id: Date.now().toString(),
@@ -131,12 +115,9 @@ app.post('/api/chat/message', async (req, res) => {
         minute: '2-digit' 
       })
     };
-
     // Generate AI response
     const aiResponse = await chatService.generateResponse(message);
-    
     const responseText = aiResponse.success ? aiResponse.response : aiResponse.fallbackResponse;
-
     // Create bot message
     const botMessage = {
       id: (Date.now() + 1).toString(),
@@ -147,22 +128,18 @@ app.post('/api/chat/message', async (req, res) => {
         minute: '2-digit' 
       })
     };
-
     // Store messages in history
     chatHistory[userId].push(userMessage);
     chatHistory[userId].push(botMessage);
-
     // Keep only last 50 messages
     if (chatHistory[userId].length > 50) {
       chatHistory[userId] = chatHistory[userId].slice(-50);
     }
-
     res.json({
       success: true,
       userMessage,
       botMessage
     });
-
   } catch (error) {
     console.error('Chat message error:', error);
     res.status(500).json({ 
@@ -171,19 +148,15 @@ app.post('/api/chat/message', async (req, res) => {
     });
   }
 });
-
 // Get chat history
 app.get('/api/chat/history/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    
     const messages = chatHistory[userId] || [];
-    
     res.json({
       success: true,
       messages: messages
     });
-
   } catch (error) {
     console.error('Chat history error:', error);
     res.status(500).json({ 
@@ -192,7 +165,6 @@ app.get('/api/chat/history/:userId', async (req, res) => {
     });
   }
 });
-
 // Clear chat history
 app.delete('/api/chat/history/:userId', async (req, res) => {
   try {
@@ -204,7 +176,6 @@ app.delete('/api/chat/history/:userId', async (req, res) => {
       success: true,
       message: 'Chat history cleared'
     });
-
   } catch (error) {
     console.error('Clear chat history error:', error);
     res.status(500).json({ 
@@ -213,7 +184,6 @@ app.delete('/api/chat/history/:userId', async (req, res) => {
     });
   }
 });
-
 // Check AI health
 app.get('/api/chat/health', async (req, res) => {
   try {
@@ -229,14 +199,12 @@ app.get('/api/chat/health', async (req, res) => {
     });
   }
 });
-
 // Start server with better error handling
 const server = app.listen(PORT, () => {
   console.log(`🚀 Chat server running on port ${PORT}`);
   console.log(`📱 Health check: http://localhost:${PORT}/health`);
   console.log(`💬 Chat endpoint: http://localhost:${PORT}/api/chat/message`);
 });
-
 // Handle port already in use
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -251,7 +219,6 @@ server.on('error', (err) => {
     process.exit(1);
   }
 });
-
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 Shutting down gracefully...');
@@ -259,7 +226,6 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
-
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down gracefully...');
   server.close(() => {

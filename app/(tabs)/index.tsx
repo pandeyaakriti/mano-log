@@ -1,14 +1,6 @@
-// File: app/%28tabs%29/index.tsx
-// This file is part of the Mano Log app, a mental health journaling application.
-// It provides the main homepage layout, including user profile, daily reflection, mood log, and
-// daily affirmations. The app uses React Native for the frontend and integrates with a backend server for data management.
-// The homepage allows users to reflect on their emotions, log their daily mood, and view affirm
-// ations to promote positive mental health.
-
-
-import React, { useState } from 'react';
+//app/(tabs)/index.tsx
+import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -18,89 +10,252 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { journalAPI } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
-
-
 type User = {
-  id: string;
+  mongoId?: string;
+  firebaseUid?: string;
+  uid?: string;
+  id?: string;
   displayName?: string;
   email?: string;
-  // add other properties as needed
+  photoURL?: string;
+  emailVerified?: boolean;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 };
-
-export default function Homepage() {
+type AIInsight = {
+  id: string;
+  summary: string;
+  wellnessTip: string; 
+  modelUsed?: string;
+  tokensUsed?: number;
+  confidence?: number;
+  createdAt?: string;
+};
+export default function index() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth() as { user: User | null };
   const [showReflectionCard, setShowReflectionCard] = useState(false);
   const [showAIInsights, setShowAIInsights] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth() as { user: User | null };
+  const [savedReflection, setSavedReflection] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedJournalId, setSavedJournalId] = useState<string | null>(null);
+  const [aiInsight, setAiInsight] = useState<AIInsight | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [blogText, setBlogText] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
 
-  const moods = ['😞', '😍', '😡', '🙂', '😭', '😌'];
-
-  const handleReflectPress = async () => {
-    // Validation
-    if (!reflection.trim()) {
-      Alert.alert('Empty Reflection', 'Please write something before reflecting.');
-      return;
-    }
-
-    if (!user?.id) {
-      Alert.alert('Authentication Error', 'Please sign in to save your reflection.');
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      // Save journal entry
-      await journalAPI.create(user.id, reflection.trim());
-      
-      // Show success message
-      Alert.alert(
-        'Reflection Saved! 🌟',
-        'Your thoughts have been safely stored in your journal.',
-        [
-          {
-            text: 'Continue Writing',
-            style: 'default',
-          },
-          {
-            text: 'View Journal',
-            onPress: () => {
-              // Navigate to journal/settings screen
-              // You'll need to implement this based on your navigation setup
-              console.log('Navigate to journal');
-            },
-          },
-        ]
-      );
-
-      // Clear the input
-      setReflection('');
-      
-    } catch (error) {
-      console.error('Error saving reflection:', error);
-      Alert.alert(
-        'Save Failed',
-        'We couldn\'t save your reflection right now. Please try again.',
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    console.log('Current user object:', user);
+    console.log('User firebaseUid:', user?.firebaseUid);
+    console.log('User uid:', user?.uid);
+    console.log('User id:', user?.id);
+  }, [user]);
 
   const getUserDisplayName = () => {
     if (user?.displayName) return user.displayName;
     if (user?.email) return user.email.split('@')[0];
     return 'friend';
   };
-  const greeting = `Hey ${getUserDisplayName()},\nhow are you doing today?`;
+
+  const getUserProfileImage = () => {
+    if (user?.photoURL) { 
+      return { uri: user.photoURL };
+    }
+    return require('../../assets/images/default-profile.jpg');
+  };
+
+  const getUserFirebaseUid = () => {
+    return user?.firebaseUid || user?.uid || user?.id;
+  };
+
+  const saveReflection = async () => {
+    console.log('Debug - saveReflection called');
+    console.log('Debug - reflection state:', reflection);
+    console.log('Debug - reflection length:', reflection.length);
+    console.log('Debug - user object:', user);
+    
+    const firebaseUid = getUserFirebaseUid();
+    console.log('Debug - resolved firebaseUid:', firebaseUid);
+
+    if (!user) {
+      console.log('No user found');
+      Alert.alert('Authentication Error', 'User not found. Please login again.');
+      return;
+    }
+
+    if (!firebaseUid) {
+      console.log('No firebaseUid found in user object');
+      console.log('Available user properties:', Object.keys(user));
+      Alert.alert('Authentication Error', 'User ID not found. Please logout and login again.');
+      return;
+    }
+
+    if (!reflection.trim()) {
+      console.log('Reflection is empty or only whitespace');
+      Alert.alert('Validation Error', 'Please write a reflection before saving.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log('Saving reflection for user:', firebaseUid);
+      
+      const payload = {
+        firebaseUid: firebaseUid,
+        textContent: reflection.trim(),
+      }; 
+      console.log('Payload:', payload);
+
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal`;
+      console.log('API URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+
+        Alert.alert(
+          'Save Failed', 
+          `Failed to save reflection: ${errorData.error || 'Unknown error'}`
+        );
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+      console.log('Journal saved successfully:', data);
+      const journalId = data.journal?.id || data.id;
+      console.log('Extracted journal ID:', journalId);
+      
+      if (!journalId) {
+        console.error('No journal ID found in response:', data);
+        Alert.alert('Error', 'Journal saved but ID not found. Please try generating insights again.');
+        return;
+      }
+      setSavedJournalId(journalId);
+      setSavedReflection(reflection);
+      setShowReflectionCard(true); 
+      setShowSuccessModal(true);
+      Alert.alert('Success', 'Reflection saved successfully!');
+      setReflection('');
+      setSelectedMood(null);
+
+    } catch (err) {
+      console.error('API error:', err);
+      
+      let errorMessage = 'Error saving reflection. Please try again.';
+      
+      if ((err as Error).message === 'Network request failed') {
+        errorMessage = 'Network error: Cannot connect to server. Please check your internet connection and ensure the server is running.';
+      } else if ((err as Error).name === 'TypeError') {
+        errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+      }
+      Alert.alert('Network Error, check internet connection', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  //insights
+   const generateInsights = async () => {
+    if (!savedJournalId) {
+      Alert.alert('Error', 'No journal entry found to generate insights for.');
+      return;
+    }
+
+    try {
+      setInsightLoading(true);
+      console.log('Generating insights for journal ID:', savedJournalId);
+
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal/insight/generate/${savedJournalId}`;
+      console.log('Insight API URL:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json' 
+        },
+      });
+
+      console.log('Insight response status:', response.status);
+      console.log('Insight response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Insight error response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+
+        Alert.alert(
+          'Insight Generation Failed', 
+          `Failed to generate insights: ${errorData.error || 'Unknown error'}`
+        );
+        return;
+      }
+
+      const data = await response.json();
+      console.log('Insight response data:', data);
+
+      if (data.success && data.data) {
+        setAiInsight(data.data);
+        setShowReflectionCard(false);
+        setShowAIInsights(true);
+      } else {
+        throw new Error('Invalid response format');
+      }
+
+    } catch (err) {
+      console.error('Insight API error:', err);
+      
+      let errorMessage = 'Error generating insights. Please try again.';
+      
+      if ((err as Error).message === 'Network request failed') {
+        errorMessage = 'Network error: Cannot connect to server. Please check your internet connection.';
+      } else if ((err as Error).name === 'TypeError') {
+        errorMessage = 'Connection error: Please ensure the server is running and accessible.';
+      }
+      
+      Alert.alert('Network Error', errorMessage);
+    } finally {  
+      setInsightLoading(false);
+    }
+  };
+
+  const handleReflectPress = async () => {
+    console.log('Reflect button pressed');
+    await saveReflection();
+  };
 
   return (
     <View style={styles.gradient}>
@@ -110,78 +265,67 @@ export default function Homepage() {
             {/* Profile Header */}
             <View style={styles.profileHeader}>
               <Image
-                source={require('../../assets/images/image.png')}
+                source={getUserProfileImage()}
                 style={styles.profileImage}
               />
               <Text style={styles.greeting}>
-                Hey {getUserDisplayName()},{"\n"}how are you doing today?</Text>
+                {"\n"}Hey, {getUserDisplayName()}, {"\n"}How are you doing today?
+              </Text>
             </View>
 
             {/* Reflection Section */}
             <View style={styles.reflectionSection}>
-               <Text style={styles.sectionTitle}>Daily Reflection</Text>
+              <Text style={styles.sectionTitle}>Daily Reflection</Text>
               <TextInput
                 placeholder="How do you feel about your current emotions?"
                 value={reflection}
-                onChangeText={setReflection}
-                style={[styles.textInput, { fontSize: 20 }]}
+                onChangeText={(text) => {
+                  setReflection(text);
+                }}
+                style={styles.textInput}
                 multiline
-                maxLength={1000}
-                editable={!isLoading}
-                />
-              {/* Character count */}
-              <Text style={styles.characterCount}>
-                {reflection.length}/1000 characters
-              </Text>
-
-              {/* Reflect Button */}
-              {/* <Pressable
-                style={styles.reflectButton}
-                onPress={() => setShowReflectionCard(true)}
-              >
-                <Text style={styles.reflectButtonText}>Reflect Here</Text>
-                <Icon name="arrow-forward" size={20} color="#333" />
-              </Pressable>
-            </View> */}
-            <Pressable
+                numberOfLines={4}
+              />
+              <Pressable
                 style={[
-                  styles.reflectButton,
-                  (isLoading || !reflection.trim()) && styles.reflectButtonDisabled
+                  styles.reflectButton, 
+                  isLoading && { opacity: 0.6 },
+                  !reflection.trim() && { opacity: 0.5 }
                 ]}
                 onPress={handleReflectPress}
                 disabled={isLoading || !reflection.trim()}
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#333" size="small" />
-                ) : (
-                  <>
-                    <Text style={styles.reflectButtonText}>
-                      {reflection.trim() ? 'Save Reflection' : 'Write Something First'}
-                    </Text>
-                    <Icon name="arrow-forward" size={20} color="#333" />
-                  </>
-                )}
+                <Text style={styles.reflectButtonText}>
+                  {isLoading ? 'Saving...' : 'Reflect Here'}
+                </Text>
+                <Icon name="arrow-forward" size={20} color="#333" />
               </Pressable>
             </View>
 
-            {/* Mood Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Daily Mood Log</Text>
-              <View style={styles.moodRow}>
-                {moods.map((mood, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.moodButton,
-                      selectedMood === mood && styles.moodSelected,
-                    ]}
-                    onPress={() => setSelectedMood(mood)}
-                  >
-                    <Text style={styles.moodText}>{mood}</Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Streak and Mood Section */}
+            <View style={styles.streakMoodContainer}>
+              <View style={styles.streakRow}>
+                <View style={styles.streakCard}>
+                  <View style={styles.streakCardRow}>
+                    <Text style={styles.streakLabel}>Longest Streak</Text>
+                    <Text style={styles.streakValue}>
+                      <Text style={{ fontSize: 23, fontWeight: 'bold' }}>43</Text>
+                      <Text style={{ marginLeft: 2 }}>✨</Text>
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.streakCard}>
+                  <View style={styles.streakCardRow}>
+                    <Text style={styles.streakLabel}>Current Streak</Text>
+                    <Text style={styles.streakValue}>
+                      <Text style={{ fontSize: 23, fontWeight: 'bold' }}>27</Text>
+                      <Text style={{ marginLeft: 2 }}>💥</Text>
+                    </Text>
+                  </View>
+                </View>
               </View>
-            </View>
+              </View>
 
             {/* Affirmation Section */}
             <View style={styles.affirmationSection}>
@@ -190,7 +334,58 @@ export default function Homepage() {
                 You are capable of amazing things. Every step forward, no matter how small, is progress worth celebrating.
               </Text>
             </View>
-          </ScrollView>
+            
+            {/*divider section */}
+            <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>blog sheet</Text>
+            <View style={styles.dividerLine} />
+            </View>
+
+            {/* Blog Sheet Section */}
+            <View style={styles.blogSheetSection}>
+              <View style={styles.blogSheetHeader}>
+                <Text style={styles.blogSheetTitle}> Blog Sheet</Text>
+                <View style={styles.blogLine} />
+              </View>
+              <View style={styles.blogInputWrapper}>
+                <TextInput
+                  style={styles.blogInput}
+                  placeholder="Post sheet..."
+                  placeholderTextColor="#999"
+                  multiline
+                  value={blogText}
+                  onChangeText={setBlogText}
+                />
+                <Text style={styles.blogSubtext}>Unhinged, Raw, Honest</Text>
+                <TouchableOpacity
+                  style={styles.sendIcon}
+                  onPress={() => {
+                    if (blogText.trim()) {
+                      console.log('Sending blog:', blogText);
+                      setShowConfetti(true);
+                      setBlogText('');
+                    }
+                  }}
+                >
+                  <Icon name="send" size={22} color="#AF8CAF" />
+                </TouchableOpacity>
+                
+            </View>
+            </View>
+            {showConfetti && (
+                  <ConfettiCannon
+                    count={30}
+                    origin={{ x: 300, y: 0 }}
+                    fadeOut
+                    fallSpeed={3000}
+                    explosionSpeed={500}
+                    onAnimationEnd={() => setShowConfetti(false)}
+                  />
+                )}
+              </ScrollView>
+    
+
 
           {/* Bottom Navigation */}
           <View style={styles.bottomNav}>
@@ -222,34 +417,32 @@ export default function Homepage() {
             <View style={styles.overlay}>
               <View style={styles.card}>
                 <View style={styles.checkIconContainer}>
-                  <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
+                  <Icon name="checkmark-circle" size={50} color="#10B981" />
                 </View>
-                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+                <Text style={styles.cardDate}>
+                  {new Date().getDate()}{"\n"}
+                  {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+                </Text>
 
-                <TextInput
-                  style={styles.cardTextInput}
-                  value={reflection}
-                  onChangeText={setReflection}
-                  placeholder="Type your reflection here..."
-                  multiline
-                  textAlign="center"
-                />
+                <View style={styles.cardTextDisplay}>
+                  <Text style={styles.cardDisplayText}>{savedReflection}</Text>
+                </View>
 
                 <TouchableOpacity
                   style={styles.insightButton}
                   onPress={() => {
                     setShowReflectionCard(false);
-                    setShowAIInsights(true);
-                  }}
+                    generateInsights();}}
+                  disabled={insightLoading}
                 >
-                  <Text style={styles.insightButtonText}>Get insights</Text>
+                  <Text style={styles.insightButtonText}>{insightLoading ? 'Generating...' : 'Get insights'}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.closeButton}
                   onPress={() => setShowReflectionCard(false)}
                 >
-                  <Icon name="close-circle" size={28} color="#999" />
+                  <Icon name="close-circle" size={28} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -260,30 +453,33 @@ export default function Homepage() {
             <View style={styles.overlay}>
               <View style={styles.card}>
                 <TouchableOpacity
-                  style={styles.checkIconContainer}
-                  onPress={() => setShowAIInsights(false)}
-                >
-                  <Icon name="checkmark-circle" size={50} color="#A1D1A1" />
-                </TouchableOpacity>
+                style={styles.checkIconContainer}
+                onPress={() => setShowAIInsights(false)}
+              >
+                <Icon name="checkmark-circle" size={50} color="#10B981" />
+              </TouchableOpacity>
 
-                <Text style={styles.cardDate}>24{"\n"}Sat</Text>
+              <Text style={styles.cardDate}>
+                {new Date().getDate()}{"\n"}
+                {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
+              </Text>
 
-                <View style={styles.aiCardBox}>
-                  <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
-                  <Text style={styles.aiCardText}>
-                    It sounds like you had a mixed day with some challenges but also successes. Youre showing resilience & how youre handling stress.
-                  </Text>
-                </View>
+              <View style={styles.aiCardBox}>
+                <Text style={styles.aiCardTitle}>🧠 Emotional Summary</Text>
+                <Text style={styles.aiCardText}>
+                  {aiInsight?.summary as string || 'Generating your personalized emotional summary...'}
+                </Text>
+              </View>
 
-                <View style={styles.aiCardBoxYellow}>
-                  <Text style={styles.aiCardTitle}>🌙 Wellness Tip</Text>
-                  <Text style={styles.aiCardText}>
-                    Consider taking 5 minutes for deep breathing exercises before bed tonight to help clear your mind and prepare for restful sleep.
-                  </Text>
-                </View>
+              <View style={styles.aiCardBoxYellow}>
+                <Text style={styles.aiCardTitle}>🌙 Wellness Tip</Text>
+                <Text style={styles.aiCardText}>
+                  {aiInsight?.wellnessTip as string || 'Preparing a personalized wellness tip for you...'}
+                </Text>
               </View>
             </View>
-          )}
+          </View>
+        )} 
         </View>
       </SafeAreaView>
     </View>
@@ -293,7 +489,7 @@ export default function Homepage() {
 const styles = StyleSheet.create({
   gradient: {
     flex: 1,
-    backgroundColor: '#E7B8D9',
+    backgroundColor: '#FAF6F6',
   },
   safeArea: {
     flex: 1,
@@ -323,25 +519,25 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#5F3F3F',
     flex: 1,
+
   },
   reflectionSection: {
-    fontSize: 12,
     marginBottom: 25,
-    backgroundColor: '#F7F0F3',
+    backgroundColor: '#D8D5F0',
     borderRadius: 15,
     padding: 15,
   },
   section: {
     marginBottom: 25,
-    backgroundColor: '#FDEFF4',
+    backgroundColor: '#9791B9',
     borderRadius: 15,
     padding: 15,
   },
   affirmationSection: {
     marginBottom: 25,
-    backgroundColor: '#EDF3DD',
+    backgroundColor: '#E0E8DDDD',
     borderRadius: 15,
     padding: 15,
   },
@@ -353,47 +549,59 @@ const styles = StyleSheet.create({
   textInput: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 10,
+    padding: 15,
     textAlignVertical: 'top',
-    minHeight: 60,
-    fontSize: 60,
-    color: '#333',
+    minHeight: 100,
+    fontSize: 16,
+    lineHeight: 22,
   },
-  characterCount: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'right',
-    marginTop: 5,
-    marginBottom: 10,
-  },
-  moodRow: {
+  // New Streak + Mood Section
+  streakMoodContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: 25,
   },
-  moodButton: {
-    padding: 10,
-    borderRadius: 10,
+  streakRow: {
+    flexDirection: 'row',
+    gap: 20,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  moodSelected: {
-    backgroundColor: '#fff',
+  streakCard: {
+    backgroundColor: '#F4C4B6B2',
+    borderRadius: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    height: 70,
+    justifyContent: 'center',
+    width: 170,
   },
-  moodText: {
-    fontSize: 24,
+  streakCardRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+},
+  streakLabel: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  streakValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
   },
   reflectButton: {
-    //marginTop: 10,
-    backgroundColor: '#CFD9B4',
+    marginTop: 15,
+    backgroundColor: '#9791B9',
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 10,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  reflectButtonDisabled: {
-  backgroundColor: '#E5E5E5',
-  opacity: 0.6,
   },
   reflectButtonText: {
     fontSize: 16,
@@ -468,6 +676,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 10,
   },
+  cardTextDisplay: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    width: '100%',
+    marginBottom: 20,
+    minHeight: 80,
+  },
+  cardDisplayText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
   cardTextInput: {
     fontSize: 14,
     color: '#333',
@@ -525,4 +746,94 @@ const styles = StyleSheet.create({
     color: '#333',
     lineHeight: 18,
   },
+  dividerContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginVertical: 20,
+  marginHorizontal: 10,
+},
+
+dividerLine: {
+  flex: 1,
+  height: 1,
+  backgroundColor: '#AF8CAF',
+  opacity: 0.5,
+},
+
+dividerText: {
+  marginHorizontal: 10,
+  fontSize: 12,
+  fontStyle: 'italic',
+  color: '#AF8CAF',
+},
+  //blogsheet
+ blogSheetSection: {
+  backgroundColor: '#F6F0F9',
+  borderRadius: 15,
+  padding: 15,
+  marginBottom: 25,
+  marginHorizontal: 10,
+  borderWidth: 1,
+  borderColor: '#E5D0F2',
+  shadowColor: '#C2A6D3',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+  elevation: 2,
+},
+blogSheetHeader: {
+  marginBottom: 10,
+},
+blogSheetTitle: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  color: '#5F3F3F',
+  textAlign: 'left',
+  marginBottom: 4,
+},
+blogLine: {
+  height: 2,
+  backgroundColor: '#AF8CAF',
+  borderRadius: 1,
+  width: 70,
+},
+blogInputWrapper: {
+  backgroundColor: '#E4DDEA',
+  borderRadius: 12,
+  padding: 12,
+  position: 'relative',
+  minHeight: 90,
+  marginTop: 5,
+  shadowColor: '#BBAACD',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 3,
+  elevation: 1,
+},
+blogInput: {
+  fontSize: 15,
+  minHeight: 60,
+  color: '#333',
+  paddingRight: 40,
+  lineHeight: 22,
+},
+blogSubtext: {
+  fontSize: 12,
+  color: '#7F7F7F',
+  marginTop: 6,
+},
+sendIcon: {
+  position: 'absolute',
+  bottom: 15,
+  right: 15,
+  backgroundColor: '#F6F0F9',
+  borderRadius: 20,
+  padding: 6,
+  shadowColor: '#AF8CAF',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.2,
+  shadowRadius: 2,
+  elevation: 1,
+},
 });
+

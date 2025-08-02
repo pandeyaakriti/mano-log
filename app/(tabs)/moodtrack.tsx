@@ -1,8 +1,8 @@
 import MoodWheel from '@/components/screen/MoodWheel';
 import { useFonts } from 'expo-font';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient as XPLinearGradient } from 'expo-linear-gradient';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, Path, RadialGradient, Stop } from 'react-native-svg';
 
 
 const { width } = Dimensions.get('window');
@@ -19,8 +19,8 @@ export default function index() {
       );
       }
   return (
-    <LinearGradient
-      colors={['#f6fff4ff', '#f6fff4ff']}
+    <XPLinearGradient
+      colors={['#f9fdf8ff', '#f6fff4ff']}
       style={styles.background}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
@@ -37,6 +37,18 @@ export default function index() {
       </View>
 <View style={styles.waveWrapper}>
   <Svg width={width} height={400} viewBox={`0 0 ${width} 400`}>
+    <Defs>
+    <RadialGradient id="grad" cx="50%"
+  cy="50%"
+  rx="50%"
+  ry="50%"
+  fx="70%"
+  fy="70%">
+        <Stop offset="0%" stopColor="#FFDDEC" />
+        <Stop offset="70%" stopColor="#dcbcd0ff" />
+        <Stop offset="100%" stopColor="#c5a8c1ff" />
+    </RadialGradient>
+    </Defs>
     <Path
       d={`
         M0,0 
@@ -46,13 +58,12 @@ export default function index() {
         C${width * 0.33},360 ${width * 0.16},240 0,300 
         Z
       `}
-      fill="#d7e9d1ff"
+      fill="url(#grad)"
     />
+    
   </Svg>
 </View>
-
-
-</LinearGradient> 
+</XPLinearGradient> 
   );
 }
 
@@ -86,19 +97,19 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   text: {
-    fontSize: 32,
-    color: '#5F3F3F', 
+    fontSize: 28,
+    color: '#480b70ff', 
     textAlign: 'center',
     paddingHorizontal: 20,
-    top: -80,
+    top: -110,
   },
   choosetext: {
     fontSize: 15,
-    color: '#5F3F3F', 
+    color: '#480b70ff', 
     textAlign: 'center',
     paddingHorizontal: 20,
     fontFamily: 'PlusJakartaSans',
-    top: -70,
+    top: -100,
   },
   wheelContainer: {
     position: 'absolute',

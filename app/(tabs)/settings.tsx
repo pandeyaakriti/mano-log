@@ -54,7 +54,7 @@ interface MonthSeparator {
 
 type JournalItem = JournalEntry | MonthSeparator;
 
-export default function settings() {
+export default function Settings() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
   const [journals, setJournals] = useState<JournalItem[]>([]);
@@ -86,7 +86,7 @@ export default function settings() {
         setIsLoading(true);
       }
 
-      const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/journal/${firebaseUid}`;
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/journal/${firebaseUid}`;
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {

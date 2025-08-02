@@ -7,7 +7,7 @@ const journalRoutes = require('./journal.routes');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const app = express();
-const PORT = process.env.PORT_WELLNESS || 3001;
+const PORT = process.env.PORT_ROOT || 5000;
 
 
 app.use(cors());

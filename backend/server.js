@@ -51,6 +51,7 @@ app.get('/health', (req, res) => {
 app.use('/api/chat', chatRouter);
 app.use('/api/moodtrack', moodRoutes); 
 app.use('/api/trends', trendsRoutes); // Use trends routes
+app.use('/api/journal', journalRoutes);
 
 // Get user by Firebase UID
 app.get('/api/users/:firebaseUid', async (req, res) => {
@@ -331,11 +332,11 @@ app.use((error, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(` Main server running on port ${PORT}`);
-  console.log(` Health check: http://localhost:${PORT}/health`);
-  console.log(` Journal API: http://localhost:${PORT}/api/journal`);
-});
+// const server = app.listen(PORT, '0.0.0.0', () => {
+//   console.log(` Main server running on port ${PORT}`);
+//   console.log(` Health check: http://localhost:${PORT}/health`);
+//   console.log(` Journal API: http://localhost:${PORT}/api/journal`);
+// });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {

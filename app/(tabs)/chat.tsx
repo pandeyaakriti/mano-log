@@ -30,7 +30,7 @@ interface AiChatProps {
 
 // Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-const USER_ID = 'd74D7FU4kcPJhia6zfPLghT8q6D3';
+const USER_ID = '687e20b9b70ab925bc788b26';
 const { height: screenHeight } = Dimensions.get('window');
 
 export default function AiChat({ navigation }: AiChatProps) {

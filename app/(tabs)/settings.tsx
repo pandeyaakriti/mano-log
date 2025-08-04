@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,15 @@ interface DatabaseJournalEntry {
   userId: string;
 }
 
+interface DatabaseBlogEntry {
+  id: string;
+  textContent: string;
+  entryDate: string;
+  wordCount: number;
+  tags: string[];
+  userId: string;
+}
+
 interface JournalEntry {
   date: string;
   day: string;
@@ -47,21 +56,35 @@ interface JournalEntry {
   originalEntry?: DatabaseJournalEntry;
 }
 
+interface BlogEntry {
+  date: string;
+  day: string;
+  color: string;
+  text: string;
+  fullReflection: string;
+  originalEntry?: DatabaseBlogEntry;
+}
+
 interface MonthSeparator {
   isMonth: true;
   label: string;
 }
 
 type JournalItem = JournalEntry | MonthSeparator;
+type BlogItem = BlogEntry | MonthSeparator;
+type ViewMode = 'profile' | 'journals' | 'blogs';
 
 export default function Settings() {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+  const [selectedBlogEntry, setSelectedBlogEntry] = useState<BlogEntry | null>(null);
   const [journals, setJournals] = useState<JournalItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [blogs, setBlogs] = useState<BlogItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { user } = useAuth() as { user: User | null };
+  const [viewMode, setViewMode] = useState<ViewMode>('profile');
+  const { user, logout } = useAuth() as { user: User | null; logout: () => Promise<void> };
   
   const colors = ['#CFF5C3', '#F9E1DD', '#C5F1F2', '#F5C6C6', '#E8D5F0', '#FFE4B5'];
 
@@ -74,7 +97,7 @@ export default function Settings() {
     
     if (!firebaseUid) {
       Alert.alert('Authentication Error', 'User not found. Please login again.');
-      router.push ('/auth/login');
+      router.push('/auth/login');
       setIsLoading(false);
       return;
     }
@@ -115,6 +138,60 @@ export default function Settings() {
         'Failed to load journal entries. Please check your internet connection.'
       );
       setJournals([]);
+      console.error('Journal fetch error:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const fetchBlogEntries = async (isRefresh = false) => {
+    const firebaseUid = getUserFirebaseUid();
+    
+    if (!firebaseUid) {
+      Alert.alert('Authentication Error', 'User not found. Please login again.');
+      router.push('/auth/login');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      const apiUrl = `${process.env.EXPO_PUBLIC_API_BASE_URL}/blogsheet/${firebaseUid}`; 
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.entries && Array.isArray(data.entries)) {
+        const processedBlogs = processBlogEntries(data.entries);
+        setBlogs(processedBlogs);
+      } else {
+        setBlogs([]);
+      }
+
+    } catch (error) {
+      Alert.alert(
+        'Error', 
+        'Failed to load blog sheet entries. Please check your internet connection.'
+      );
+      setBlogs([]);
+      console.error('Blog fetch error:', error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -164,23 +241,72 @@ export default function Settings() {
         });
 
       } catch (error) {
-        console.error(`Error processing entry ${index}:`, error);
+        console.error(`Error processing journal entry ${index}:`, error);
       }
     });
 
     return processed;
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchJournalEntries();
-    } else {
-      setIsLoading(false);
+  const processBlogEntries = (entries: DatabaseBlogEntry[]): BlogItem[] => {
+    if (!Array.isArray(entries) || entries.length === 0) {
+      return [];
     }
-  }, [user]);
 
-  const openReflection = (entry: JournalEntry) => {
+    const processed: BlogItem[] = [];
+    let currentMonth = '';
+
+    const sortedEntries = [...entries].sort((a, b) => 
+      new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()
+    );
+
+    sortedEntries.forEach((entry, index) => {
+      try {
+        const entryDate = new Date(entry.entryDate);
+        const month = entryDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const date = entryDate.getDate().toString();
+        const day = entryDate.toLocaleDateString('en-US', { weekday: 'short' });
+
+        if (month !== currentMonth) {
+          processed.push({
+            isMonth: true,
+            label: month
+          });
+          currentMonth = month;
+        }
+
+        const previewText = entry.textContent && entry.textContent.length > 100 
+          ? entry.textContent.substring(0, 100) + '...'
+          : entry.textContent || 'No content';
+
+        const color = colors[index % colors.length];
+
+        processed.push({
+          date,
+          day,
+          color,
+          text: previewText,
+          fullReflection: entry.textContent || 'No content',
+          originalEntry: entry
+        });
+
+      } catch (error) {
+        console.error(`Error processing blog entry ${index}:`, error);
+      }
+    });
+
+    return processed;
+  };
+
+  const openJournalEntry = (entry: JournalEntry) => {
     setSelectedEntry(entry);
+    setSelectedBlogEntry(null);
+    setModalVisible(true);
+  };
+
+  const openBlogEntry = (entry: BlogEntry) => {
+    setSelectedBlogEntry(entry);
+    setSelectedEntry(null);
     setModalVisible(true);
   };
 
@@ -197,8 +323,30 @@ export default function Settings() {
     return require('../../assets/images/default-profile.jpg');
   };
 
-  const refreshJournals = () => {
-    fetchJournalEntries(true);
+  const refreshContent = () => {
+    if (viewMode === 'journals') {
+      fetchJournalEntries(true);
+    } else if (viewMode === 'blogs') {
+      fetchBlogEntries(true);
+    }
+  };
+
+  const handleMyJournalsPress = () => {
+    setViewMode('journals');
+    if (journals.length === 0) {
+      fetchJournalEntries();
+    }
+  };
+
+  const handleMyBlogsPress = () => {
+    setViewMode('blogs');
+    if (blogs.length === 0) {
+      fetchBlogEntries();
+    }
+  };
+
+  const handleBackToProfile = () => {
+    setViewMode('profile');
   };
 
   const handleLogout = async () => {
@@ -217,16 +365,179 @@ export default function Settings() {
             setIsLoggingOut(true);
             try {
               await logout();
-              // Navigation will be handled by the auth context/router
             } catch (error) {
               Alert.alert('Error', 'Failed to logout. Please try again.');
               console.error('Logout error:', error);
             } finally {
               setIsLoggingOut(false);
-            }},
-        }, ]
-    ); };
+            }
+          },
+        },
+      ]
+    );
+  };
 
+  const renderProfileView = () => (
+    <View style={styles.profileSection}>
+      <View style={styles.profileImageContainer}>
+        <Image
+          source={getUserProfileImage()}
+          style={styles.profileImage}
+        />
+      </View>
+      <Text style={styles.name}>{getUserDisplayName()}</Text>
+      <Text style={styles.email}>{user?.email}</Text>
+      
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity 
+          style={styles.journalBtn}
+          onPress={handleMyJournalsPress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.journalBtnText}>My Journals</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.blogBtn}
+          onPress={handleMyBlogsPress}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.blogBtnText}>My Blogs</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+          activeOpacity={0.7}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator size={18} color="#999" />
+          ) : (
+            <Icon 
+              name="log-out-outline" 
+              size={18} 
+              color="#D64545" 
+            />
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderHeader = () => {
+    if (viewMode === 'profile') {
+      return null;
+    }
+
+    return (
+      <View style={styles.contentHeader}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleBackToProfile}
+          activeOpacity={0.7}
+        >
+          <Icon name="arrow-back" size={20} color="#6B4E71" />
+        </TouchableOpacity>
+        
+        <Text style={styles.contentTitle}>
+          {viewMode === 'journals' ? 'My Journals' : 'My Blogs'}
+        </Text>
+
+        <TouchableOpacity 
+          style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
+          onPress={refreshContent}
+          disabled={isLoading || isRefreshing}
+          activeOpacity={0.7}
+        >
+          <Icon 
+            name={isRefreshing ? "refresh" : "refresh-outline"} 
+            size={18} 
+            color={isRefreshing ? "#999" : "#6B4E71"} 
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderContent = () => {
+    if (viewMode === 'profile') {
+      return renderProfileView();
+    }
+
+    const currentEntries = viewMode === 'journals' ? journals : blogs;
+    const entryType = viewMode === 'journals' ? 'journal' : 'blog';
+    const emptyTitle = viewMode === 'journals' ? 'No journal entries yet' : 'No blog entries yet';
+    const emptySubtext = viewMode === 'journals' 
+      ? 'Start writing your daily reflections to see them here'
+      : 'Start writing your random thoughts to see them here';
+
+    if (isLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#C295BC" />
+          <Text style={styles.loadingText}>
+            Loading your {entryType}s...
+          </Text>
+        </View>
+      );
+    }
+
+    if (currentEntries.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Icon 
+              name={viewMode === 'journals' ? "journal-outline" : "newspaper-outline"} 
+              size={60} 
+              color="#B8A2C8" 
+            />
+          </View>
+          <Text style={styles.emptyText}>{emptyTitle}</Text>
+          <Text style={styles.emptySubtext}>{emptySubtext}</Text>
+        </View>
+      );
+    }
+
+    return currentEntries.map((entry, index) =>
+      'isMonth' in entry ? (
+        <View key={`month-${index}`} style={styles.monthContainer}>
+          <View style={styles.monthLine} />
+          <Text style={styles.monthText}>{entry.label}</Text>
+          <View style={styles.monthLine} />
+        </View>
+      ) : (
+        <TouchableOpacity
+          key={`entry-${entry.originalEntry?.id || index}`}
+          style={styles.entryContainer}
+          onPress={() => viewMode === 'journals' ? openJournalEntry(entry) : openBlogEntry(entry)}
+          activeOpacity={0.8}
+        >
+          <View
+            style={[styles.dateContainer, { backgroundColor: entry.color }]}
+          >
+            <Text style={styles.dateText}>{entry.date}</Text>
+            <Text style={styles.dayText}>{entry.day}</Text>
+          </View>
+          <View
+            style={[styles.entryBox, { backgroundColor: entry.color }]}
+          >
+            <Text style={styles.entryText}>{entry.text}</Text>
+            {entry.originalEntry && (
+              <View style={styles.entryMetadata}>
+                <Text style={styles.wordCountText}>
+                  {entry.originalEntry.wordCount} words
+                </Text>
+                <Icon name="chevron-forward" size={14} color="#777" />
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      )
+    );
+  };
+
+  const currentSelectedEntry = selectedEntry || selectedBlogEntry;
 
   return (
     <LinearGradient
@@ -235,105 +546,8 @@ export default function Settings() {
       style={{ flex: 1 }}
     >
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.profileSection}>
-          <View style={styles.profileImageContainer}>
-            <Image
-              source={getUserProfileImage()}
-              style={styles.profileImage}
-            />
-          </View>
-          <Text style={styles.name}>{getUserDisplayName()}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
-          
-          <View style={styles.journalHeader}>
-            <View style={styles.journalBtn}>
-              <Text style={styles.journalBtnText}>My Journals</Text>
-            </View>
-            <TouchableOpacity 
-              style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
-              onPress={refreshJournals}
-              disabled={isLoading || isRefreshing}
-              activeOpacity={0.7}
-            >
-              <Icon 
-                name={isRefreshing ? "refresh" : "refresh-outline"} 
-                size={18} 
-                color={isRefreshing ? "#999" : "#6B4E71"} 
-                style={isRefreshing ? styles.refreshIconSpinning : null}
-              />
-            </TouchableOpacity>
-            <TouchableOpacity 
-                style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
-                onPress={handleLogout}
-                disabled={isLoading || isRefreshing || isLoggingOut}
-                activeOpacity={0.7}
-              >
-                {isLoggingOut ? (
-                  <ActivityIndicator size={18} color="#999" />
-                ) : (
-                  <Icon 
-                    name="log-out-outline" 
-                    size={18} 
-                    color="#D64545" 
-                  />
-                )}
-              </TouchableOpacity>
-          </View>
-        </View>
-
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#C295BC" />
-            <Text style={styles.loadingText}>Loading your journals...</Text>
-          </View>
-        ) : journals.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconContainer}>
-              <Icon name="journal-outline" size={60} color="#B8A2C8" />
-            </View>
-            <Text style={styles.emptyText}>No journal entries yet</Text>
-            <Text style={styles.emptySubtext}>
-              Start writing your daily reflections to see them here
-            </Text>
-          </View>
-        ) : (
-          journals.map((entry, index) =>
-            'isMonth' in entry ? (
-              <View key={`month-${index}`} style={styles.monthContainer}>
-                <View style={styles.monthLine} />
-                <Text style={styles.monthText}>{entry.label}</Text>
-                <View style={styles.monthLine} />
-              </View>
-            ) : (
-              <TouchableOpacity
-                key={`entry-${entry.originalEntry?.id || index}`}
-                style={styles.journalContainer}
-                onPress={() => openReflection(entry)}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[styles.dateContainer, { backgroundColor: entry.color }]}
-                >
-                  <Text style={styles.dateText}>{entry.date}</Text>
-                  <Text style={styles.dayText}>{entry.day}</Text>
-                </View>
-                <View
-                  style={[styles.entryBox, { backgroundColor: entry.color }]}
-                >
-                  <Text style={styles.entryText}>{entry.text}</Text>
-                  {entry.originalEntry && (
-                    <View style={styles.entryMetadata}>
-                      <Text style={styles.wordCountText}>
-                        {entry.originalEntry.wordCount} words
-                      </Text>
-                      <Icon name="chevron-forward" size={14} color="#777" />
-                    </View>
-                  )}
-                </View>
-              </TouchableOpacity>
-            )
-          )
-        )}
+        {renderHeader()}
+        {renderContent()}
       </ScrollView>
 
       <Modal
@@ -346,8 +560,8 @@ export default function Settings() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View style={styles.modalDateContainer}>
-                <Text style={styles.modalCornerDate}>{selectedEntry?.date}</Text>
-                <Text style={styles.modalCornerDay}>{selectedEntry?.day}</Text>
+                <Text style={styles.modalCornerDate}>{currentSelectedEntry?.date}</Text>
+                <Text style={styles.modalCornerDay}>{currentSelectedEntry?.day}</Text>
               </View>
               <TouchableOpacity
                 style={styles.modalCloseButton}
@@ -361,12 +575,12 @@ export default function Settings() {
             <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
               <View style={styles.centeredTextWrapper}>
                 <Text style={styles.modalText}>
-                  {selectedEntry?.fullReflection}
+                  {currentSelectedEntry?.fullReflection}
                 </Text>
-                {selectedEntry?.originalEntry && (
+                {currentSelectedEntry?.originalEntry && (
                   <View style={styles.entryInfo}>
                     <Text style={styles.entryInfoText}>
-                      Written on {new Date(selectedEntry.originalEntry.entryDate).toLocaleDateString('en-US', {
+                      Written on {new Date(currentSelectedEntry.originalEntry.entryDate).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
@@ -374,7 +588,7 @@ export default function Settings() {
                       })}
                     </Text>
                     <Text style={styles.entryInfoText}>
-                      {selectedEntry.originalEntry.wordCount} words
+                      {currentSelectedEntry.originalEntry.wordCount} words
                     </Text>
                   </View>
                 )}
@@ -433,14 +647,39 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     opacity: 0.8,
   },
-  journalHeader: {
+  actionButtonsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  actionButtons: {
+  contentHeader: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 30,
+    paddingHorizontal: 4,
+  },
+  backButton: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  contentTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#6B4E71',
+    flex: 1,
+    textAlign: 'center',
   },
   journalBtn: {
     backgroundColor: 'rgba(255,255,255,0.9)',
@@ -456,6 +695,24 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.3)',
   },
   journalBtnText: {
+    fontWeight: '600',
+    color: '#6B4E71',
+    fontSize: 16,
+  },
+  blogBtn: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  blogBtnText: {
     fontWeight: '600',
     color: '#6B4E71',
     fontSize: 16,
@@ -495,9 +752,6 @@ const styles = StyleSheet.create({
   },
   logoutButtonDisabled: {
     opacity: 0.6,
-  },
-  refreshIconSpinning: {
-    //  add animation here if front end guys are mehenati enough
   },
   loadingContainer: {
     flex: 1,
@@ -545,7 +799,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: 280,
   },
-  journalContainer: {
+  entryContainer: {
     flexDirection: 'row',
     marginVertical: 8,
     alignItems: 'flex-start',
@@ -728,7 +982,3 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
-
-function logout() {
-  router.push ('/auth/login');
-}

@@ -1,6 +1,3 @@
-//app/(tabs)/index.tsx
-//@ts-ignore
-//@ts-nocheck
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -1018,4 +1015,3 @@ insightLoadingText: {
 },
 
 });
-

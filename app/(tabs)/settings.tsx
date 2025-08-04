@@ -84,7 +84,7 @@ export default function Settings() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('profile');
-  const { user, logout } = useAuth() as { user: User | null; logout: () => Promise<void> };
+  const { user} = useAuth() as { user: User | null };
   
   const colors = ['#CFF5C3', '#F9E1DD', '#C5F1F2', '#F5C6C6', '#E8D5F0', '#FFE4B5'];
 
@@ -408,7 +408,7 @@ export default function Settings() {
         <TouchableOpacity 
           style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
           onPress={handleLogout}
-          disabled={isLoggingOut}
+          disabled={isLoading || isRefreshing || isLoggingOut}
           activeOpacity={0.7}
         >
           {isLoggingOut ? (
@@ -982,3 +982,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+function logout() {
+  router.push ('/auth/login');
+}

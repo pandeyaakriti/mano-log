@@ -192,13 +192,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E8DD',
     borderRadius: 18,
     padding: 20,
-    borderLeftWidth: 5,
     
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    
+
   },
   affirmationHeader: {
     flexDirection: 'row',
@@ -209,7 +205,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: '#A38CBC',
+    color: '#404644ff',
+    alignContent: 'center',
+    textAlign: 'center',
   },
   dayIndicator: {
     fontSize: 12,

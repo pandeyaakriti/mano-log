@@ -549,12 +549,7 @@ export default function Settings() {
 
  return (
    <View style={styles.mainContainer}>
-      {/* Curved Gradient Background
-      <LinearGradient
-        colors={['#9791B9', '#DDA8D6', '#E0ACD8', '#F8D3EF', '#FFF9D3']}
-        locations={[0, 0.25, 0.5, 0.75, 1]}
-        style={styles.gradientBackground}
-      > */}
+      
         <Svg height="700" width="100%" viewBox="0 70 1440 320" style={styles.svgBackground}>
            <Defs>
                       <SvgGradient id="waveGradient" x1="0%" y1="80%" x2="100%" y2="20%" gradientTransform="rotate(45)">
@@ -1078,5 +1073,5 @@ const styles = StyleSheet.create({
 });
 
 function logout() {
-  router.push('/auth/login');
+  router.push('/auth/signup');
 }

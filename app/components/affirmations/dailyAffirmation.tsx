@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 20,
     borderLeftWidth: 5,
-    borderLeftColor: '#81C784',
+    
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -209,11 +209,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: '#2E7D32',
+    color: '#A38CBC',
   },
   dayIndicator: {
     fontSize: 12,
-    color: '#4CAF50',
+    color: '#4CA771',
     fontWeight: '600',
     backgroundColor: '#C8E6C9',
     paddingHorizontal: 8,
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   affirmationContent: {
-    color: '#1B5E20',
+    color: '#164048',
     lineHeight: 26,
     fontSize: 16,
     fontStyle: 'italic',
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 11,
-    color: '#4CAF50',
+    color: '#00877B',
     fontWeight: '500',
   },
 });

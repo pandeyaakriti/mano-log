@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useAuth } from '../../context/AuthContext'; // Add this import
 
 interface Message {
   id?: string;
@@ -29,12 +30,26 @@ interface AiChatProps {
   navigation?: any;
 }
 
+// User type matching the one from settings
+type User = {
+  mongoId?: string;
+  firebaseUid?: string;
+  uid?: string;
+  id?: string;
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+  emailVerified?: boolean;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
+
 // Configuration
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
-const USER_ID = '68765c002f7447e179e0eafd';
 const { height: screenHeight } = Dimensions.get('window');
 
 export default function AiChat({ navigation }: AiChatProps) {
+  const { user } = useAuth() as { user: User | null }; // Add auth context
   const [messages, setMessages] = useState<Message[]>([
     {
       text: 'Welcome to Wellness Chat. How are you feeling today?',
@@ -52,16 +67,24 @@ export default function AiChat({ navigation }: AiChatProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<TextInput>(null);
 
+  // Helper function to get user ID (same pattern as settings)
+  const getUserFirebaseUid = () => {
+    return user?.firebaseUid || user?.uid || user?.id;
+  };
+
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
   useEffect(() => {
-    checkBackendConnection();
-    // Auto-check connection every 30 seconds
-    const interval = setInterval(checkBackendConnection, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    // Only check connection if user is authenticated
+    if (user) {
+      checkBackendConnection();
+      // Auto-check connection every 30 seconds
+      const interval = setInterval(checkBackendConnection, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Animate loading indicator
   useEffect(() => {
@@ -106,6 +129,13 @@ export default function AiChat({ navigation }: AiChatProps) {
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    // Check if user is authenticated
+    const userId = getUserFirebaseUid();
+    if (!userId) {
+      Alert.alert('Authentication Error', 'Please login to send messages.');
+      return;
+    }
+
     const messageText = input.trim();
     const userMessage: Message = {
       text: messageText,
@@ -125,14 +155,14 @@ export default function AiChat({ navigation }: AiChatProps) {
     }, 100);
 
     try {
-      // Call backend API
+      // Call backend API with dynamic user ID
       const response = await fetch(`${API_BASE_URL}/api/chat/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: USER_ID,
+          userId: userId, // Use dynamic user ID instead of hardcoded
           message: messageText,
           source: 'chat'
         }),
@@ -220,6 +250,28 @@ export default function AiChat({ navigation }: AiChatProps) {
     setConnectionChecking(true);
     checkBackendConnection();
   };
+
+  // Show authentication prompt if user is not logged in
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.authPromptContainer}>
+          <Icon name="lock-closed-outline" size={60} color="#D5AABF" />
+          <Text style={styles.authPromptTitle}>Authentication Required</Text>
+          <Text style={styles.authPromptText}>
+            Please login to access the wellness chat.
+          </Text>
+          <TouchableOpacity 
+            style={styles.loginButton}
+            onPress={() => navigation?.navigate('Login')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.loginButtonText}>Go to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const ConnectionStatus = () => (
     <View style={styles.connectionStatus}>
@@ -386,7 +438,7 @@ export default function AiChat({ navigation }: AiChatProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F0D4D6',
+    backgroundColor: '#FFFFF',
   },
  header: {
   height: 70,
@@ -582,5 +634,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#856404',
     textAlign: 'center',
+  },
+  // New styles for authentication prompt
+  authPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  authPromptTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#6B4E71',
+    marginTop: 20,
+    marginBottom: 12,
+  },
+  authPromptText: {
+    fontSize: 16,
+    color: '#777',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  loginButton: {
+    backgroundColor: '#D5AABF',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

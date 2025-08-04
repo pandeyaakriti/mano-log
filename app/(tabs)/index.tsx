@@ -3,6 +3,7 @@
 //@ts-nocheck
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Pressable,
@@ -12,7 +13,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
@@ -602,6 +603,16 @@ const saveBlogPost = async () => {
             </View>
           </View>
         )} 
+        {insightLoading && (
+  <View style={styles.insightLoadingOverlay}>
+    <View style={styles.insightLoadingBox}>
+      <ActivityIndicator size="large" color="#AF8CAF" />
+      <Text style={styles.insightLoadingText}>Generating insights...</Text>
+    </View>
+  </View>
+)}
+
+
         </View>
       </SafeAreaView>
     </View>
@@ -973,6 +984,38 @@ sendIcon: {
   shadowOpacity: 0.2,
   shadowRadius: 2,
   elevation: 1,
+  
 },
+insightLoadingOverlay: {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: 'rgba(0,0,0,0.35)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  zIndex: 20,
+},
+insightLoadingBox: {
+  width: 260,
+  paddingVertical: 30,
+  paddingHorizontal: 25,
+  backgroundColor: '#fff',
+  borderRadius: 20,
+  alignItems: 'center',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.25,
+  shadowRadius: 6,
+  elevation: 8,
+},
+insightLoadingText: {
+  marginTop: 16,
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#5F3F3F',
+},
+
 });
 

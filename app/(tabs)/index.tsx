@@ -1,3 +1,4 @@
+import { getAuth } from 'firebase/auth';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -38,6 +39,84 @@ type AIInsight = {
   confidence?: number;
   createdAt?: string;
 };
+interface MoodStats {
+  longestStreak: number;
+  currentStreak: number;
+  avgMoodThisWeek: string;
+  avgMoodIndex: number;
+  weeklyStats: {
+    totalEntriesThisWeek: number;
+    allMoodCountsThisWeek: number[];
+  };
+}
+// API helper functions for streak data
+const getAuthToken = async (): Promise<string | null> => {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return token;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting Firebase token:', error);
+    return null;
+  }
+};
+const getUserIdFromFirebase = async (firebaseUid: string): Promise<string | null> => {
+  try {
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users/by-firebase/${firebaseUid}`);
+    
+    if (response.ok) {
+      const userData = await response.json();
+      if (userData.success && userData.data && userData.data.id) {
+        return userData.data.id;
+      }
+    }
+    
+    console.error('Failed to get user ID from database');
+    return null;
+  } catch (error) {
+    console.error('Error getting user ID:', error);
+    return null;
+  }
+};
+const fetchMoodStats = async (userId: string): Promise<MoodStats | null> => {
+  try {
+    const token = await getAuthToken();
+    
+    if (!token || !userId) {
+      throw new Error('Authentication required');
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/trends/stats?userId=${userId}&algorithm=latest`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-User-Id': userId,
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.success ? data.data : null;
+  } catch (error) {
+    console.error('Error fetching mood stats:', error);
+    return null;
+  }
+};
 export default function Index() {
   const [reflection, setReflection] = useState('');
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
@@ -53,11 +132,78 @@ export default function Index() {
   const [blogText, setBlogText] = useState('');
   const [showConfetti, setShowConfetti] = useState(false);
 
+  // New state for streak data
+  const [streakData, setStreakData] = useState<{
+    longestStreak: number;
+    currentStreak: number;
+    loading: boolean;
+    error: string | null;
+  }>({
+    longestStreak: 0,
+    currentStreak: 0,
+    loading: true,
+    error: null
+  });
+
   useEffect(() => {
     console.log('Current user object:', user);
     console.log('User firebaseUid:', user?.firebaseUid);
     console.log('User uid:', user?.uid);
     console.log('User id:', user?.id);
+  }, [user]);
+   // Load streak data when user is available
+  useEffect(() => {
+    const loadStreakData = async () => {
+      if (!user) {
+        setStreakData(prev => ({ ...prev, loading: false, error: 'No user found' }));
+        return;
+      }
+
+      const firebaseUid = getUserFirebaseUid();
+      if (!firebaseUid) {
+        setStreakData(prev => ({ ...prev, loading: false, error: 'No Firebase UID found' }));
+        return;
+      }
+
+      try {
+        setStreakData(prev => ({ ...prev, loading: true, error: null }));
+        
+        // Get database user ID from Firebase UID
+        const userId = await getUserIdFromFirebase(firebaseUid);
+        if (!userId) {
+          setStreakData(prev => ({ ...prev, loading: false, error: 'Failed to get user ID' }));
+          return;
+        }
+
+        // Fetch mood stats including streak data
+        const moodStats = await fetchMoodStats(userId);
+        if (moodStats) {
+          setStreakData({
+            longestStreak: moodStats.longestStreak,
+            currentStreak: moodStats.currentStreak,
+            loading: false,
+            error: null
+          });
+          console.log('Streak data loaded successfully:', {
+            longest: moodStats.longestStreak,
+            current: moodStats.currentStreak
+          });
+        } else {
+          setStreakData(prev => ({ ...prev, loading: false, error: 'Failed to fetch streak data' }));
+        }
+      } catch (error) {
+        console.error('Error loading streak data:', error);
+        setStreakData(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: 'Network error - using fallback data',
+          longestStreak: 43, // Fallback values
+          currentStreak: 27
+        }));
+      }
+    };
+
+    loadStreakData();
   }, [user]);
 
   const getUserDisplayName = () => {
@@ -354,42 +500,43 @@ const saveBlogPost = async () => {
     setIsLoading(false);
   }
 };
-<Svg height="700" width="100%" viewBox="0 70 1440 320" style={styles.svg}>
-  <Defs>
-    <SvgGradient id="waveGradient" x1="0%" y1="80%" x2="100%" y2="20%" gradientTransform="rotate(45)">
-      <Stop offset="18%" stopColor="#9791B9" />
-      <Stop offset="51%" stopColor="#DDA8D6" />
-      <Stop offset="52%" stopColor="#E0ACD8" />
-      <Stop offset="70%" stopColor="#F8D3EF" />
-      <Stop offset="100%" stopColor="#FFF9D3" />
-    </SvgGradient>
-  </Defs>
-  <Path
-    fill="url(#waveGradient)"
-    d="
-      M0,-700 H1440 V64 L1380,64 
-      C1320,64 1200,64 1080,64 
-      C960,64 840,64 720,64 
-      C600,64 480,64 360,64 
-      C240,64 120,64 60,64 
-      L0,64 
-      L0,0 
-      Z
-      M0,64
-      L63,120
-      C120,170,240,240,360,230
-      C480,220,600,160,720,140
-      C840,120,960,140,1080,170
-      C1200,200,1320,240,1380,260
-      L1440,280
-      L1440,64
-    "
-  />
-</Svg>
+
   return (
     <View style={styles.gradient}>
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.wrapper}>
+        <Svg height="700" width="100%" viewBox="0 70 1440 320" style={styles.svg}>
+          <Defs>
+            <SvgGradient id="waveGradient" x1="0%" y1="80%" x2="100%" y2="20%" gradientTransform="rotate(45)">
+              <Stop offset="18%" stopColor="#9791B9" />
+              <Stop offset="51%" stopColor="#DDA8D6" />
+              <Stop offset="52%" stopColor="#E0ACD8" />
+              <Stop offset="70%" stopColor="#F8D3EF" />
+              <Stop offset="100%" stopColor="#FFF9D3" />
+            </SvgGradient>
+          </Defs>
+          <Path
+            fill="url(#waveGradient)"
+            d="
+              M0,-700 H1440 V64 L1380,64 
+              C1320,64 1200,64 1080,64 
+              C960,64 840,64 720,64 
+              C600,64 480,64 360,64 
+              C240,64 120,64 60,64 
+              L0,64 
+              L0,0 
+              Z
+              M0,64
+              L63,120
+              C120,170,240,240,360,230
+              C480,220,600,160,720,140
+              C840,120,960,140,1080,170
+              C1200,200,1320,240,1380,260
+              L1440,280
+              L1440,64
+            "
+          />
+        </Svg>
+          <View style={styles.wrapper}>
           <ScrollView contentContainerStyle={styles.container}>
             {/* Profile Header */}
             <View style={styles.profileHeader}>
@@ -433,29 +580,48 @@ const saveBlogPost = async () => {
             </View>
 
             {/* Streak and Mood Section */}
-            <View style={styles.streakMoodContainer}>
+           <View style={styles.streakMoodContainer}>
               <View style={styles.streakRow}>
                 <View style={styles.streakCard}>
                   <View style={styles.streakCardRow}>
                     <Text style={styles.streakLabel}>Longest Streak</Text>
-                    <Text style={styles.streakValue}>
-                      <Text style={{ fontSize: 23, fontWeight: 'bold' }}>43</Text>
-                      <Text style={{ marginLeft: 2 }}>✨</Text>
-                    </Text>
+                    {streakData.loading ? (
+                      <ActivityIndicator size="small" color="#333" />
+                    ) : (
+                      <Text style={styles.streakValue}>
+                        <Text style={{ fontSize: 23, fontWeight: 'bold' }}>
+                          {streakData.longestStreak}
+                        </Text>
+                        <Text style={{ marginLeft: 2 }}>✨</Text>
+                      </Text>
+                    )}
                   </View>
+                  {streakData.error && (
+                    <Text style={styles.errorText}>{streakData.error}</Text>
+                  )}
                 </View>
 
                 <View style={styles.streakCard}>
                   <View style={styles.streakCardRow}>
                     <Text style={styles.streakLabel}>Current Streak</Text>
-                    <Text style={styles.streakValue}>
-                      <Text style={{ fontSize: 23, fontWeight: 'bold' }}>27</Text>
-                      <Text style={{ marginLeft: 2 }}>💥</Text>
-                    </Text>
+                    {streakData.loading ? (
+                      <ActivityIndicator size="small" color="#333" />
+                    ) : (
+                      <Text style={styles.streakValue}>
+                        <Text style={{ fontSize: 23, fontWeight: 'bold' }}>
+                          {streakData.currentStreak}
+                        </Text>
+                        <Text style={{ marginLeft: 2 }}>💥</Text>
+                      </Text>
+                    )}
                   </View>
+                  {streakData.error && (
+                    <Text style={styles.errorText}>{streakData.error}</Text>
+                  )}
                 </View>
               </View>
-              </View>
+            </View>
+
 
             {/*daily affirmation */}
             <DailyAffirmation user= {user} selectedMood= {selectedMood || undefined} currentStreak={27} />
@@ -617,15 +783,15 @@ const saveBlogPost = async () => {
 }
 
 const styles = StyleSheet.create({
-  svg: {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  zIndex: -1,
-  width: '100%',
-  height: '100%',
-},
+ svg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: -1,
+    width: '100%',
+    height: '100%',
+  },
   gradient: {
     flex: 1,
     backgroundColor: '#FAF6F6',
@@ -739,6 +905,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#000',
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 8,
   },
   reflectButton: {
     marginTop: 15,

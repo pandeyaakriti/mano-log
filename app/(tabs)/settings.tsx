@@ -97,7 +97,7 @@ export default function Settings() {
     
     if (!firebaseUid) {
       Alert.alert('Authentication Error', 'User not found. Please login again.');
-      router.push('/auth/login');
+      router.push('/auth/signup');
       setIsLoading(false);
       return;
     }
@@ -539,17 +539,23 @@ export default function Settings() {
 
   const currentSelectedEntry = selectedEntry || selectedBlogEntry;
 
-  return (
-    <LinearGradient
-      colors={['#FFDDEC', '#D5AFC7', '#C295BC']}
-      locations={[0.1, 0.3, 0.5]}
-      style={{ flex: 1 }}
-    >
-      <ScrollView contentContainerStyle={styles.container}>
+ return (
+   <View style={styles.mainContainer}>
+      {/* Curved Gradient Background */}
+      <LinearGradient
+        colors={['#9791B9', '#DDA8D6', '#E0ACD8', '#F8D3EF', '#FFF9D3']}
+        locations={[0, 0.25, 0.5, 0.75, 1]}
+        style={styles.gradientBackground}
+      />
+      <View style={styles.curvedBottom} />
+
+      {/* Content */}
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         {renderHeader()}
         {renderContent()}
       </ScrollView>
 
+      {/* Modal */}
       <Modal
         transparent={true}
         visible={modalVisible}
@@ -605,14 +611,42 @@ export default function Settings() {
           </View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  gradientBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 320,
+    zIndex: 0,
+  },
+  curvedBottom: {
+    position: 'absolute',
+    top: 270,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    zIndex: 1,
+  },
   container: {
-    paddingVertical: 80,
+    flex: 1,
+    zIndex: 2,
+  },
+  contentContainer: {
+    paddingTop: 80,
     paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   profileSection: {
     alignItems: 'center',
@@ -864,7 +898,7 @@ const styles = StyleSheet.create({
   monthLine: {
     flex: 1,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: 'rgba(107, 78, 113, 0.3)',
   },
   monthText: {
     fontSize: 14,
@@ -982,6 +1016,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+
 function logout() {
-  router.push ('/auth/login');
+  router.push('/auth/login');
 }
+    

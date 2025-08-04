@@ -1,4 +1,3 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -13,9 +12,9 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
-
 type User = {
   mongoId?: string;
   firebaseUid?: string;
@@ -379,30 +378,38 @@ export default function Settings() {
 
   const renderProfileView = () => (
     <View style={styles.profileSection}>
-      <View style={styles.profileImageContainer}>
-        <Image
-          source={getUserProfileImage()}
-          style={styles.profileImage}
-        />
+      {/* Profile Image and Info */}
+      <View style={styles.profileInfoContainer}>
+        <View style={styles.profileImageContainer}>
+          <Image
+            source={getUserProfileImage()}
+            style={styles.profileImage}
+          />
+        </View>
+        <View style={styles.profileTextContainer}>
+          <Text style={styles.name}>{getUserDisplayName()}</Text>
+          <Text style={styles.email}>{user?.email}</Text>
+        </View>
       </View>
-      <Text style={styles.name}>{getUserDisplayName()}</Text>
-      <Text style={styles.email}>{user?.email}</Text>
       
+      {/* Action Buttons */}
       <View style={styles.actionButtonsContainer}>
         <TouchableOpacity 
-          style={styles.journalBtn}
+          style={styles.primaryButton}
           onPress={handleMyJournalsPress}
           activeOpacity={0.7}
         >
-          <Text style={styles.journalBtnText}>My Journals</Text>
+          <Icon name="journal-outline" size={20} color="#6B4E71" style={styles.buttonIcon} />
+          <Text style={styles.primaryButtonText}>My Journals</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={styles.blogBtn}
+          style={styles.primaryButton}
           onPress={handleMyBlogsPress}
           activeOpacity={0.7}
         >
-          <Text style={styles.blogBtnText}>My Blogs</Text>
+          <Icon name="newspaper-outline" size={20} color="#6B4E71" style={styles.buttonIcon} />
+          <Text style={styles.primaryButtonText}>My Blogs</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
@@ -414,12 +421,9 @@ export default function Settings() {
           {isLoggingOut ? (
             <ActivityIndicator size={18} color="#999" />
           ) : (
-            <Icon 
-              name="log-out-outline" 
-              size={18} 
-              color="#D64545" 
-            />
+            <Icon name="log-out-outline" size={18} color="#D64545" />
           )}
+          {!isLoggingOut && <Text style={styles.logoutButtonText}>Logout</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -427,7 +431,11 @@ export default function Settings() {
 
   const renderHeader = () => {
     if (viewMode === 'profile') {
-      return null;
+      return (
+        <View style={styles.profileHeader}>
+          <Text style={styles.profileHeaderTitle}>Profile</Text>
+        </View>
+      );
     }
 
     return (
@@ -541,12 +549,44 @@ export default function Settings() {
 
  return (
    <View style={styles.mainContainer}>
-      {/* Curved Gradient Background */}
+      {/* Curved Gradient Background
       <LinearGradient
         colors={['#9791B9', '#DDA8D6', '#E0ACD8', '#F8D3EF', '#FFF9D3']}
         locations={[0, 0.25, 0.5, 0.75, 1]}
         style={styles.gradientBackground}
-      />
+      > */}
+        <Svg height="700" width="100%" viewBox="0 70 1440 320" style={styles.svgBackground}>
+           <Defs>
+                      <SvgGradient id="waveGradient" x1="0%" y1="80%" x2="100%" y2="20%" gradientTransform="rotate(45)">
+                        <Stop offset="18%" stopColor="#9791B9" />
+                        <Stop offset="51%" stopColor="#DDA8D6" />
+                        <Stop offset="52%" stopColor="#E0ACD8" />
+                        <Stop offset="70%" stopColor="#F8D3EF" />
+                        <Stop offset="100%" stopColor="#FFF9D3" />
+                      </SvgGradient>
+                    </Defs>
+        <Path
+                    fill="url(#waveGradient)"
+                    d="
+                      M0,-700 H1440 V64 L1380,64 
+                      C1320,64 1200,64 1080,64 
+                      C960,64 840,64 720,64 
+                      C600,64 480,64 360,64 
+                      C240,64 120,64 60,64 
+                      L0,64 
+                      L0,0 
+                      Z
+                      M0,64
+                      L63,120
+                      C120,170,240,240,360,230
+                      C480,220,600,160,720,140
+                      C840,120,960,140,1080,170
+                      C1200,200,1320,240,1380,260
+                      L1440,280
+                      L1440,64
+                    "
+                  />
+                  </Svg>
       <View style={styles.curvedBottom} />
 
       {/* Content */}
@@ -628,6 +668,12 @@ const styles = StyleSheet.create({
     height: 320,
     zIndex: 0,
   },
+  svgBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+  },
   curvedBottom: {
     position: 'absolute',
     top: 270,
@@ -644,49 +690,116 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   contentContainer: {
-    paddingTop: 80,
-    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  profileHeaderTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   profileSection: {
     alignItems: 'center',
+  },
+  profileInfoContainer: {
+    alignItems: 'center',
     marginBottom: 40,
+    paddingTop: 20,
   },
   profileImageContainer: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
+    borderRadius: 50,
+    marginBottom: 20,
+  },
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: 'rgba(255,255,255,0.9)',
+  },
+  profileTextContainer: {
+    alignItems: 'center',
+  },
+  name: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#4A4A4A',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  email: {
+    fontSize: 16,
+    color: '#777',
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  actionButtonsContainer: {
+    width: '100%',
+    gap: 16,
+    paddingHorizontal: 20,
+  },
+  primaryButton: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 6,
-    borderRadius: 40,
-    marginBottom: 15,
-  },
-  profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.8)',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#4A4A4A',
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 15,
-    color: '#777',
-    textAlign: 'center',
-    marginBottom: 20,
-    opacity: 0.8,
-  },
-  actionButtonsContainer: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
     justifyContent: 'center',
+  },
+  primaryButtonText: {
+    fontWeight: '600',
+    color: '#6B4E71',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  buttonIcon: {
+    marginRight: 4,
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(214, 69, 69, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutButtonText: {
+    fontWeight: '600',
+    color: '#D64545',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.6,
   },
   contentHeader: {
     flexDirection: 'row',
@@ -696,7 +809,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   backButton: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -709,50 +822,14 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   contentTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#6B4E71',
     flex: 1,
     textAlign: 'center',
   },
-  journalBtn: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  journalBtnText: {
-    fontWeight: '600',
-    color: '#6B4E71',
-    fontSize: 16,
-  },
-  blogBtn: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  blogBtnText: {
-    fontWeight: '600',
-    color: '#6B4E71',
-    fontSize: 16,
-  },
   refreshButton: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -769,29 +846,11 @@ const styles = StyleSheet.create({
   refreshButtonDisabled: {
     opacity: 0.6,
   },
-  logoutButton: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(214, 69, 69, 0.2)',
-  },
-  logoutButtonDisabled: {
-    opacity: 0.6,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
   },
   loadingText: {
     marginTop: 16,
@@ -803,11 +862,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
     paddingHorizontal: 20,
   },
   emptyIconContainer: {
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: 'rgba(255,255,255,0.8)',
     width: 100,
     height: 100,
     borderRadius: 50,
@@ -825,6 +884,7 @@ const styles = StyleSheet.create({
     color: '#6B4E71',
     fontWeight: '600',
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 15,
@@ -1020,4 +1080,3 @@ const styles = StyleSheet.create({
 function logout() {
   router.push('/auth/login');
 }
-    

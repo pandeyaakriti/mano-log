@@ -85,7 +85,7 @@ export default function IndexScreen() {
       <View style={styles.socialcontainer}>
         <Text style={styles.socialtext}>Login with social media</Text>
         <View style={styles.socialIconsContainer}>
-          {['google', 'facebook', 'twitter'].map((icon, index) => (
+          {['google'].map((icon, index) => (
             <TouchableOpacity
               key={index}
               style={styles.socialIconsbackground}>

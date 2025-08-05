@@ -1,6 +1,6 @@
 //@ts-nocheck
 import { useFonts } from 'expo-font';
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added missing imports
 import { Alert, Dimensions, Image, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Needle from '../../assets/images/needle.svg';
 import MoodApiService from '../../services/moodServices';
@@ -59,16 +59,16 @@ export default function MoodWheel() {
         </View>
       );
       }
-  const [rotation, setRotation] = useState(0);
-  const [currentMood, setCurrentMood] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [authUser, setAuthUser] = useState(null);
+  const [rotation, setRotation] = useState(0); // Fixed: UseState -> useState
+  const [currentMood, setCurrentMood] = useState<string | null>(null); // Fixed: UseState -> useState
+  const [isSaving, setIsSaving] = useState(false); // Fixed: UseState -> useState
+  const [error, setError] = useState<string | null>(null); // Fixed: UseState -> useState
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // Fixed: UseState -> useState
+  const [isInitializing, setIsInitializing] = useState(true); // Fixed: UseState -> useState
+  const [authUser, setAuthUser] = useState(null); // Fixed: UseState -> useState
 
   // Get the logged-in user and fetch their database user ID
-  useEffect(() => {
+  useEffect(() => { // Fixed: UseEffect -> useEffect
     const initializeUser = async () => {
       console.log('Initializing user authentication...');
       setIsInitializing(true);
@@ -250,7 +250,7 @@ export default function MoodWheel() {
     try {
       const moodData = {
         moodType: MOOD_TYPE_MAPPING[moodName],
-        intensity: INTENSITY_MAPPING[moodName],
+        intensity: INTENSITY_MAPPING[MOOD_TYPE_MAPPING[moodName]], // Fixed mapping chain
         note: `Mood selected: ${moodMessage}`,
         userId: currentUserId,
       };

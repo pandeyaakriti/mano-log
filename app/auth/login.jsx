@@ -104,12 +104,7 @@ const Login = () => {
           >
             <FontAwesome name="google" size={25} color="#8A2D6B" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.socialIconsbackground}>
-            <FontAwesome name="facebook" size={25} color="#8A2D6B" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.socialIconsbackground}>
-            <FontAwesome name="twitter" size={25} color="#8A2D6B" />
-          </TouchableOpacity>
+          
         </View>
       </View>
     </LinearGradient>

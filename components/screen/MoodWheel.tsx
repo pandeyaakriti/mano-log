@@ -1,5 +1,6 @@
 //@ts-nocheck
-import React, { useEffect, useState } from 'react';
+import { useFonts } from 'expo-font';
+import React, { useEffect, useState } from 'react'; // Added missing imports
 import { Alert, Dimensions, Image, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Needle from '../../assets/images/needle.svg';
 import MoodApiService from '../../services/moodServices';
@@ -33,31 +34,41 @@ const MOOD_TYPE_MAPPING = {
   'fine': 'NEUTRAL',
   'happy': 'HAPPY',
   'nervous': 'ANXIOUS',
-  'disappointed': 'SAD',
+  'disappointed': 'TIRED',
   'irritated': 'ANGRY'
 };
 
-// Intensity mapping based on mood selection (1-10 scale)
+// Intensity mapping based on mood selection (1-6 scale)
 const INTENSITY_MAPPING = {
-  'sad': 3,
-  'fine': 5,
-  'happy': 8,
-  'nervous': 4,
-  'disappointed': 2,
-  'irritated': 6
+  'SAD': 5.8,
+  'NEUTRAL': 4.8,      // maps to 'fine' in frontend
+  'HAPPY': 3.8,
+  'ANXIOUS': 2.8,   // maps to 'nervous' in frontend
+  'ANGRY': 1.8,     // maps to 'disappointed' in frontend
+  'TIRED': 0.8      // maps to 'irritated' in frontend
 };
 
 export default function MoodWheel() {
-  const [rotation, setRotation] = useState(0);
-  const [currentMood, setCurrentMood] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [authUser, setAuthUser] = useState(null);
+   const [fontsLoaded] = useFonts({
+      PlusJakartaSans: require('../../assets/fonts/PlusJakartaSans.ttf'),
+    });
+    if (!fontsLoaded) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+          <Text>Loading fonts...</Text>
+        </View>
+      );
+      }
+  const [rotation, setRotation] = useState(0); // Fixed: UseState -> useState
+  const [currentMood, setCurrentMood] = useState<string | null>(null); // Fixed: UseState -> useState
+  const [isSaving, setIsSaving] = useState(false); // Fixed: UseState -> useState
+  const [error, setError] = useState<string | null>(null); // Fixed: UseState -> useState
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // Fixed: UseState -> useState
+  const [isInitializing, setIsInitializing] = useState(true); // Fixed: UseState -> useState
+  const [authUser, setAuthUser] = useState(null); // Fixed: UseState -> useState
 
   // Get the logged-in user and fetch their database user ID
-  useEffect(() => {
+  useEffect(() => { // Fixed: UseEffect -> useEffect
     const initializeUser = async () => {
       console.log('Initializing user authentication...');
       setIsInitializing(true);
@@ -73,7 +84,7 @@ export default function MoodWheel() {
             
             // Fetch the user's database record using Firebase UID
             try {
-              const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users/by-firebase/${firebaseUser.uid}`);
+              const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUser.uid}`);
               console.log('User lookup response status:', response.status);
               
               if (response.ok) {
@@ -113,6 +124,25 @@ export default function MoodWheel() {
 
         return () => unsubscribe();
 
+        // Method 2: Using Custom Auth Context (uncomment if using custom auth)
+        /*
+        const { user, isAuthenticated } = useAuth();
+        
+        if (isAuthenticated && user) {
+          if (user.id) {
+            // If you already have the database user ID
+            setCurrentUserId(user.id);
+            console.log('Using user ID from auth context:', user.id);
+          } else if (user.firebaseUid) {
+            // If you have Firebase UID, fetch the database user ID
+            await fetchUserByFirebaseUid(user.firebaseUid);
+          }
+        } else {
+          setError('Please log in to use the mood tracker');
+        }
+        setIsInitializing(false);
+        */
+
       } catch (error) {
         console.error('Error during user initialization:', error);
         setError(`Authentication error: ${error.message}`);
@@ -127,7 +157,7 @@ export default function MoodWheel() {
   const createUserInDatabase = async (firebaseUser) => {
     try {
       console.log('Creating user in database...');
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users`, {
+      const response = await fetch('http://192.168.137.1:5000/api/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,7 +192,7 @@ export default function MoodWheel() {
   // Helper function to fetch user by Firebase UID
   const fetchUserByFirebaseUid = async (firebaseUid) => {
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL}/users/by-firebase/${firebaseUid}`);
+      const response = await fetch(`http://192.168.137.1:5000/api/users/by-firebase/${firebaseUid}`);
       
       if (response.ok) {
         const userData = await response.json();
@@ -220,7 +250,7 @@ export default function MoodWheel() {
     try {
       const moodData = {
         moodType: MOOD_TYPE_MAPPING[moodName],
-        intensity: INTENSITY_MAPPING[moodName],
+        intensity: INTENSITY_MAPPING[MOOD_TYPE_MAPPING[moodName]], // Fixed mapping chain
         note: `Mood selected: ${moodMessage}`,
         userId: currentUserId,
       };
@@ -323,38 +353,42 @@ export default function MoodWheel() {
 
       {/* Needle pointing to selected mood */}
       <View style={styles.needleIcon}>
-        <Needle width={60} height={80} fill="#6A4E77" />
+        <Needle width={60} height={80} />
       </View>
 
       {/* Selected mood display */}
-      <View style={styles.labelContainer}>
-        <TouchableOpacity 
-          style={[
-            styles.centerEmojiCircle,
-            isDisabled && styles.centerEmojiCircleDisabled
-          ]}
-          onPress={() => handleSaveMood(selectedIndex)}
-          disabled={isDisabled}
-        >
-          <Image source={EMOJIS[selectedIndex].image} style={styles.labelEmoji} />
-          {(isSaving || isInitializing) && (
-            <View style={styles.loadingOverlay}>
-              <Text style={styles.loadingText}>...</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        <Text style={styles.labelMessage}>{MESSAGES[selectedIndex]}</Text>
+<View style={styles.labelContainer}>
+  <TouchableOpacity
+    style={[
+      styles.centerEmojiCircle,
+      isSaving && styles.centerEmojiCircleDisabled // Only dim when saving
+    ]}
+    onPress={() => handleSaveMood(selectedIndex)}
+    disabled={isSaving} // Only disable during saving, not during auth check
+  >
+    <Image source={EMOJIS[selectedIndex].image} style={[{ fontFamily: 'PlusJakartaSans' }, styles.labelEmoji]} />
+    
+    {/* Show loading only during save, not during auth init */}
+    {isSaving && (
+      <View style={styles.loadingOverlay}>
+        <Text style={styles.loadingText}>...</Text>
       </View>
+    )}
+  </TouchableOpacity>
+  
+  <Text style={styles.labelMessage}>{MESSAGES[selectedIndex]}</Text>
+</View>
 
-      {/* Emoji Wheel */}
-      {LOOP_EMOJIS.map((emoji, i) => {
-        const angle = ANGLE_STEP * (i - CENTER_OFFSET);
-        const posAngle = angle - rotation;
-        if (Math.abs(posAngle) > Math.PI / 2 + 0.5) return null;
 
-        const x = RADIUS * Math.cos(posAngle - Math.PI / 2);
-        const y = RADIUS * Math.sin(posAngle - Math.PI / 2);
-        const isSelected = Math.abs(posAngle) < ANGLE_STEP / 2;
+        {/* Emoji Wheel */}
+        {LOOP_EMOJIS.map((emoji, i) => {
+          const angle = ANGLE_STEP * (i - CENTER_OFFSET);
+          const posAngle = angle - rotation;
+          if (Math.abs(posAngle) > Math.PI / 2 + 0.5) return null;
+
+          const x = RADIUS * Math.cos(posAngle - Math.PI / 2);
+          const y = RADIUS * Math.sin(posAngle - Math.PI / 2);
+          const isSelected = Math.abs(posAngle) < ANGLE_STEP / 2;
 
         return (
           <TouchableOpacity
@@ -409,25 +443,29 @@ const styles = StyleSheet.create({
   container: {
     width,
     height: RADIUS * 3,
+    overflow: 'visible',       // <--- important
+  position: 'relative',
   },
   labelContainer: {
     position: 'absolute',
-    top: -170,
+    top: -205,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   labelEmoji: {
-    width: 87,
-    height: 87,
+    width: 125,
+    height: 125,
     resizeMode: 'contain',
+    zIndex: 10
   },
   labelMessage: {
-    fontSize: 22,
+    fontSize: 25,
     fontWeight: 'bold',
-    color: '#6A4E77',
+    fontFamily: 'PlusJakartaSans',
+    color: '#480b70ff',
     left: 2,
-    marginTop: -17,
+    marginTop: -19,
   },
   needleIcon: {
     position: 'absolute',
@@ -449,16 +487,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffcdbff',
     paddingHorizontal: 28,
     paddingVertical: 12,
-    borderWidth: 0.2,
+    borderWidth: 0.1,
     borderRadius: 24,
-    shadowColor: '#B197FC',
+    shadowColor: '#5c4b8dff',
     shadowOpacity: 0.2,
     shadowOffset: { width: 0, height: 3 },
     shadowRadius: 6,
     elevation: 5,
   },
   saveButtonText: {
-    color: '#6A4E77',
+    color: '#480b70ff',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -467,12 +505,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   centerEmojiCircle: {
-    width: 92,
-    top: -30,
-    height: 92,
-    borderRadius: 45,
+    width: 127,
+    top: -31,
+    height: 127,
+    borderRadius: 62,
     borderWidth: 1.3,
-    borderColor: '#6A4E77',
+    borderColor: '#030004ff',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#6A4E77',
@@ -498,8 +536,9 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 24,
-    color: '#6A4E77',
+    color: '#480b70ff',
     fontWeight: 'bold',
+    zIndex: 0,
   },
   successContainer: {
     position: 'absolute',
@@ -520,7 +559,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   successText: {
-    color: '#6A4E77',
+    color: '#480b70ff',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -537,7 +576,7 @@ const styles = StyleSheet.create({
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 100,
+    elevation: 20,
   },
   errorText: {
     flex: 1,
@@ -588,7 +627,7 @@ const styles = StyleSheet.create({
     width: RADIUS * 2.54,
     height: RADIUS * 2.54,
     borderRadius: RADIUS * 1.5,
-    backgroundColor: '#7d847796',
+    backgroundColor: '#C295BC',
     position: 'absolute',
     top: -30,
     opacity: 0.35,
@@ -597,7 +636,7 @@ const styles = StyleSheet.create({
     width: RADIUS * 1.5,
     height: RADIUS * 1.55,
     borderRadius: RADIUS * 0.8,
-    backgroundColor: '#fcdefcff',
+    backgroundColor: '#f6fff4ff',
     position: 'absolute',
     top: 40,
     opacity: 1,

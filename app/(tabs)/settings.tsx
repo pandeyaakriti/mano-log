@@ -309,6 +309,50 @@ export default function Settings() {
     setModalVisible(true);
   };
 
+  // const getUserDisplayName = (): string => {
+  //   if (user?.displayName) return user.displayName;
+  //   if (user?.email) return user.email.split('@')[0];
+  //   return 'friend';
+  // };
+
+  // const getUserProfileImage = () => {
+  //   if (user?.photoURL) { 
+  //     return { uri: user.photoURL };
+  //   }
+  //   return require('../../assets/images/default-profile.jpg');
+  // };
+
+  const refreshJournals = () => {
+    fetchJournalEntries(true);
+  };
+
+  // const handleLogout = async () => {
+  //   Alert.alert(
+  //     'Logout',
+  //     'Are you sure you want to logout?',
+  //     [
+  //       {
+  //         text: 'Cancel',
+  //         style: 'cancel',
+  //       },
+  //       {
+  //         text: 'Logout',
+  //         style: 'destructive',
+  //         onPress: async () => {
+  //           setIsLoggingOut(true);
+  //           try {
+  //             await logout();
+  //             // Navigation will be handled by the auth context/router
+  //           } catch (error) {
+  //             Alert.alert('Error', 'Failed to logout. Please try again.');
+  //             console.error('Logout error:', error);
+  //           } finally {
+  //             setIsLoggingOut(false);
+  //           }},
+  //       }, ]
+  //   ); };
+
+
   const getUserDisplayName = (): string => {
     if (user?.displayName) return user.displayName;
     if (user?.email) return user.email.split('@')[0];

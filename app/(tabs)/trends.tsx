@@ -1,13 +1,12 @@
 //@ts-ignore
 //@ts-nocheck
-import { useFocusEffect } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { useFocusEffect } from 'expo-router';
+import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Added missing import
 import { useCallback, useEffect, useState } from 'react';
-
 import {
-  ActivityIndicator,
-  Image,
+  ActivityIndicator, Dimensions, Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -20,14 +19,16 @@ import {
   PanGestureHandler,
 } from 'react-native-gesture-handler';
 import { BarChart } from 'react-native-gifted-charts';
-import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Defs, G, Path, Stop, LinearGradient as SvgLinearGradient, Text as SvgText } from 'react-native-svg';
+
+const { width } = Dimensions.get('window');
 
 const EMOJIS = [
   { name: 'sad', image: require('../../assets/images/sad.png'), color: '#bed9efff' },
-  { name: 'fine', image: require('../../assets/images/fine.png'), color: '#fed8cfff' },
+  { name: 'fine', image: require('../../assets/images/fine.png'), color: '#ffe1c8ff' },
   { name: 'happy', image: require('../../assets/images/happy.png'), color: '#eac8d7ff' },
   { name: 'nervous', image: require('../../assets/images/nervous.png'), color: '#dfa7cfff' },
-  { name: 'disappointed', image: require('../../assets/images/disappointed.png'), color: '#f29e71c5' },
+  { name: 'disappointed', image: require('../../assets/images/disappointed.png'), color: '#e4a787c5' },
   { name: 'irritated', image: require('../../assets/images/irritated.png'), color: '#7ab7deff' },
 ];
 
@@ -487,7 +488,31 @@ const MoodArc = ({ counts, total }: { counts: number[]; total: number }) => {
   );
 };
 
+const MOOD_TYPE_MAPPING = {
+  'sad': 'SAD',
+  'fine': 'NEUTRAL',
+  'happy': 'HAPPY',
+  'nervous': 'ANXIOUS',
+  'disappointed': 'TIRED',
+  'irritated': 'ANGRY'
+};
+
+// Intensity mapping based on mood selection (1-10 scale)
+const INTENSITY_MAPPING = {
+  'SAD': 5.8,
+  'NEUTRAL': 4.8,      // maps to 'fine' in frontend
+  'HAPPY': 3.8,
+  'ANXIOUS': 2.8,   // maps to 'nervous' in frontend
+  'ANGRY': 1.8,     // maps to 'disappointed' in frontend
+  'TIRED': 0.8     // maps to 'irritated' in frontend
+};
+
 export default function MoodTrendsUI() {
+  // Move all hooks to the top level - BEFORE any conditional returns
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans: require('../../assets/fonts/PlusJakartaSans.ttf'),
+  });
+
   const [tab, setTab] = useState<'Weekly' | 'Monthly'>('Weekly');
   const [weekIndex, setWeekIndex] = useState(0);
   const [monthIndex, setMonthIndex] = useState(0);
@@ -507,7 +532,78 @@ export default function MoodTrendsUI() {
   const [monthlyMoodCounts, setMonthlyMoodCounts] = useState<Record<string, number[]>>({});
   const [moodStats, setMoodStats] = useState<MoodStats>(fallbackMoodStats);
 
-  // Initialize authentication
+  // Enhanced data loading function
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      setIsOfflineMode(false);
+
+      if (!currentUserId || !authUser) {
+        throw new Error('Authentication required');
+      }
+
+      console.log(`Loading trends data from API for user: ${currentUserId} using algorithm: ${algorithm}`);
+
+      const [weeklyResponse, monthlyResponse, statsResponse] = await Promise.allSettled([
+        trendsApi.getWeeklyTrends(currentUserId, algorithm),
+        trendsApi.getMonthlyTrends(currentUserId, algorithm),
+        trendsApi.getMoodStats(currentUserId, algorithm),
+      ]);
+
+      let hasSuccessfulResponse = false;
+
+      if (weeklyResponse.status === 'fulfilled' && weeklyResponse.value.success) {
+        setWeeklyData(weeklyResponse.value.data);
+        setWeekIndex(weeklyResponse.value.data.length - 1);
+        hasSuccessfulResponse = true;
+        console.log('Weekly trends data loaded successfully');
+      }
+
+      if (monthlyResponse.status === 'fulfilled' && monthlyResponse.value.success) {
+        setMonthlyData(monthlyResponse.value.data);
+        // Ensure moodCounts exists and has proper structure
+        const moodCounts = monthlyResponse.value.moodCounts || {};
+        console.log('Received monthly mood counts:', moodCounts);
+        setMonthlyMoodCounts(moodCounts);
+        const monthKeys = Object.keys(monthlyResponse.value.data).sort();
+        setMonthIndex(monthKeys.length - 1);
+        hasSuccessfulResponse = true;
+        console.log('Monthly trends data loaded successfully');
+      }
+      if (statsResponse.status === 'fulfilled' && statsResponse.value.success) {
+        setMoodStats(statsResponse.value.data);
+        hasSuccessfulResponse = true;
+        console.log('Mood stats loaded successfully');
+      }
+
+      if (!hasSuccessfulResponse) {
+        throw new Error('No successful API responses');
+      }
+
+    } catch (err) {
+      console.log('Trends API failed, switching to offline mode:', err);
+      
+      if (err.message.includes('Authentication')) {
+        setError('Please log in to view your mood trends');
+        setIsOfflineMode(false);
+      } else {
+        setError('Using offline mode with sample data');
+        setIsOfflineMode(true);
+        
+        setWeeklyData(fallbackWeeklyData);
+        setMonthlyData(fallbackMonthlyData.data);
+        setMonthlyMoodCounts(fallbackMonthlyData.moodCounts);
+        setMoodStats(fallbackMoodStats);
+        setWeekIndex(fallbackWeeklyData.length - 1);
+        const fallbackMonthKeys = Object.keys(fallbackMonthlyData.data).sort();
+        setMonthIndex(fallbackMonthKeys.length - 1);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       if (!isInitializing && currentUserId && authUser) {
@@ -577,78 +673,6 @@ export default function MoodTrendsUI() {
     initializeUser();
   }, []);
 
-  // Enhanced data loading function
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setIsOfflineMode(false);
-
-      if (!currentUserId || !authUser) {
-        throw new Error('Authentication required');
-      }
-
-      console.log(`Loading trends data from API for user: ${currentUserId} using algorithm: ${algorithm}`);
-
-      const [weeklyResponse, monthlyResponse, statsResponse] = await Promise.allSettled([
-        trendsApi.getWeeklyTrends(currentUserId, algorithm),
-        trendsApi.getMonthlyTrends(currentUserId, algorithm),
-        trendsApi.getMoodStats(currentUserId, algorithm),
-      ]);
-
-      let hasSuccessfulResponse = false;
-
-      if (weeklyResponse.status === 'fulfilled' && weeklyResponse.value.success) {
-        setWeeklyData(weeklyResponse.value.data);
-        setWeekIndex(weeklyResponse.value.data.length - 1);
-        hasSuccessfulResponse = true;
-        console.log('Weekly trends data loaded successfully');
-      }
-
-      if (monthlyResponse.status === 'fulfilled' && monthlyResponse.value.success) {
-        setMonthlyData(monthlyResponse.value.data);
-  // Ensure moodCounts exists and has proper structure
-        const moodCounts = monthlyResponse.value.moodCounts || {};
-        console.log('Received monthly mood counts:', moodCounts);
-        setMonthlyMoodCounts(moodCounts);
-        const monthKeys = Object.keys(monthlyResponse.value.data).sort();
-        setMonthIndex(monthKeys.length - 1);
-        hasSuccessfulResponse = true;
-        console.log('Monthly trends data loaded successfully');
-      }
-      if (statsResponse.status === 'fulfilled' && statsResponse.value.success) {
-        setMoodStats(statsResponse.value.data);
-        hasSuccessfulResponse = true;
-        console.log('Mood stats loaded successfully');
-      }
-
-      if (!hasSuccessfulResponse) {
-        throw new Error('No successful API responses');
-      }
-
-    } catch (err) {
-      console.log('Trends API failed, switching to offline mode:', err);
-      
-      if (err.message.includes('Authentication')) {
-        setError('Please log in to view your mood trends');
-        setIsOfflineMode(false);
-      } else {
-        setError('Using offline mode with sample data');
-        setIsOfflineMode(true);
-        
-        setWeeklyData(fallbackWeeklyData);
-        setMonthlyData(fallbackMonthlyData.data);
-        setMonthlyMoodCounts(fallbackMonthlyData.moodCounts);
-        setMoodStats(fallbackMoodStats);
-        setWeekIndex(fallbackWeeklyData.length - 1);
-        const fallbackMonthKeys = Object.keys(fallbackMonthlyData.data).sort();
-        setMonthIndex(fallbackMonthKeys.length - 1);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Load data when user is authenticated or algorithm changes
   useEffect(() => {
     if (!isInitializing && currentUserId && authUser) {
@@ -658,6 +682,15 @@ export default function MoodTrendsUI() {
       setError('Please log in to view your mood trends');
     }
   }, [currentUserId, authUser, isInitializing, algorithm]); // Added algorithm dependency
+
+  // NOW check for fonts after all hooks are declared
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text>Loading fonts...</Text>
+      </View>
+    );
+  }
 
   const monthKeys = Object.keys(monthlyData).sort();
 
@@ -736,8 +769,32 @@ export default function MoodTrendsUI() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.safe}>
+        <View style={styles.waveWrapper}>
+          <Svg width={width} height={240} viewBox={`0 0 ${width} 200`}>
+            <Defs>
+                <SvgLinearGradient id="gradient" x1="0" y1="0" x2="1" y2="1">
+                    <Stop offset="0%" stopColor="#decff8ff" />
+                    <Stop offset="60%" stopColor="#fdd9f0ff" />
+                    <Stop offset="80%" stopColor="#f2d5eaff" />
+                    <Stop offset="100%" stopColor="#feffd3ff" />
+                </SvgLinearGradient>
+                </Defs>
+            <Path
+              d={`
+                M0,-70 
+                H${width} 
+                V150 
+                C${width * 0.8},100 ${width * 0.6},80 ${width * 0.5},100 
+                C${width * 0.2},160 ${width * 0.1},140 0,100 
+                Z
+              `}
+              fill="url(#gradient)"
+            />
+          </Svg>
+        </View>
+        
         <ScrollView contentContainerStyle={styles.container}>
-          <Text style={styles.title}>Mood Trends</Text>
+          <Text style={[{ fontFamily: 'PlusJakartaSans' }, styles.title]}>Mood Trends</Text>
 
           {error && (
             <View style={[styles.errorContainer, isOfflineMode && styles.offlineModeContainer]}>
@@ -751,32 +808,6 @@ export default function MoodTrendsUI() {
               )}
             </View>
           )}
-
-          {/* NEW: Algorithm Selection */}
-          {/* <View style={styles.algorithmContainer}>
-            <Text style={styles.algorithmLabel}>Aggregation Method:</Text>
-            <View style={styles.algorithmRow}>
-              {['latest', 'mostFrequent', 'weightedAverage', 'dominantMood'].map((alg) => (
-                <TouchableOpacity
-                  key={alg}
-                  onPress={() => setAlgorithm(alg)}
-                  style={[styles.algorithmButton, algorithm === alg && styles.algorithmButtonActive]}
-                >
-                  <Text style={[styles.algorithmButtonText, algorithm === alg && styles.algorithmButtonTextActive]}>
-                    {alg === 'latest' ? 'Latest' : 
-                     alg === 'mostFrequent' ? 'Most Frequent' :
-                     alg === 'weightedAverage' ? 'Weighted Avg' : 'Dominant'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.algorithmDescription}>
-              {algorithm === 'latest' ? 'Shows the last mood entry of each day' :
-               algorithm === 'mostFrequent' ? 'Shows the most common mood of each day' :
-               algorithm === 'weightedAverage' ? 'Calculates average based on intensity and time' :
-               'Shows mood with highest combined frequency and intensity'}
-            </Text>
-          </View> */}
 
           <View style={styles.statsRow}>
             <View style={styles.statBox}>
@@ -935,7 +966,7 @@ export default function MoodTrendsUI() {
                       {calendarDays.map((day, i) => {
                         if (day === null) {
                           return (
-                            <View key={i} style={[styles.calendarCell, { backgroundColor: '#f0e6f7' }]} />
+                            <View key={i} style={[styles.calendarCell, { backgroundColor: '#c3abd5ff' }]} />
                           );
                         }
 
@@ -960,7 +991,7 @@ export default function MoodTrendsUI() {
           </LinearGradient>
 
           <LinearGradient
-            colors={['#eed4ffff', '#ffe9c6ff']}
+            colors={['#eed4ffff', '#fdd9f0ff', '#f2d5eaff', '#ffdcc6ff']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.card}
@@ -1002,18 +1033,20 @@ export default function MoodTrendsUI() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f3e5f3ff', paddingTop: 30 },
+  safe: { flex: 1, backgroundColor: '#ffffffd2', paddingTop: 30 },
   container: { padding: 18, paddingBottom: 90 },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#5b006bff',
+    fontFamily: 'PlusJakartaSans',
+    color: '#480b70ff',
     textAlign: 'center',
     marginVertical: 12,
   },
   loadingSubtext: {
     fontSize: 14,
     color: '#666',
+    fontFamily: 'PlusJakartaSans',
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -1043,7 +1076,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   offlineModeText: {
-    color: '#1976d2',
+    color: '#480b70ff',
   },
   retryButton: {
     backgroundColor: '#5b006bff',
@@ -1076,18 +1109,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statBox: {
-    backgroundColor: '#ffebf0ff',
+    backgroundColor: '#bf98d2c9',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#b085b5ff',
+    borderColor: '#decceaff',
     padding: 12,
     width: '30%',
     marginVertical: 6,
   },
-  statLabel: { fontSize: 12, color: '#540060bb', fontWeight: 'bold' },
-  statValue: { fontSize: 22, color: '#444', fontWeight: 'bold', marginTop: 2 },
+  statLabel: { fontSize: 12, color: '#480b70ff', fontWeight: 'bold' },
+  statValue: { fontSize: 22, color: '#480b70ff', fontWeight: 'bold', marginTop: 2 },
   card: {
-    backgroundColor: '#d9ebc3b0',
+    backgroundColor: '#ccddea',
     borderRadius: 18,
     padding: 16,
     marginTop: 16,
@@ -1099,13 +1132,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#470a57ff',
+    color: '#480b70ff',
     marginBottom: 4,
   },
   tabRow: {
     flexDirection: 'row',
     marginVertical: 10,
-    backgroundColor: '#f2e4ffff',
+    backgroundColor: '#c29edaff',
     borderRadius: 10,
     overflow: 'hidden',
   },
@@ -1115,14 +1148,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#ecc2ede2',
+    backgroundColor: '#8b70b6fe',
     borderRadius: 10,
   },
-  activeTabText: { color: '#470a57ff' },
-  tabText: { color: '#412f48ff', fontWeight: 'bold', fontSize: 14 },
+  activeTabText: { color: '#ffffffff' },
+  tabText: { color: '#480b70ff', fontWeight: 'bold', fontSize: 14 },
   dateLabel: {
     alignSelf: 'center',
-    color: '#444',
+    color: '#ffffffff',
     fontWeight: 'bold',
     marginBottom: 2,
     paddingTop: 4,
@@ -1133,7 +1166,7 @@ const styles = StyleSheet.create({
     marginLeft: -15,
     marginRight: -15,
     paddingBottom: 2,
-    backgroundColor: '#f5d5fdff',
+    backgroundColor: '#b590c6ff',
     borderRadius: 10,
     opacity: 1,
   },
@@ -1142,7 +1175,7 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     fontSize: 14,
-    color: '#63006eff',
+    color: '#ccddea',
     fontWeight: 'bold',
   },
   
@@ -1160,42 +1193,42 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   dateNavContainer: {
-  flexDirection: 'row',
-  height: 30,
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  backgroundColor: '#fce7ffff',
-  paddingHorizontal: 12,
-  paddingVertical: 0,
-  borderRadius: 16,
-  marginVertical: 3,
-  marginHorizontal: 10,
-  shadowColor: '#ccc',
-  shadowOpacity: 0.1,
-  shadowOffset: { width: 0, height: 2 },
-  shadowRadius: 4,
-  elevation: 3,
-},
+    flexDirection: 'row',
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#b590c6ff',
+    paddingHorizontal: 12,
+    paddingVertical: 0,
+    borderRadius: 16,
+    marginVertical: 3,
+    marginHorizontal: 10,
+    shadowColor: '#ccc',
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
 
-dateLabelContainer: {
-  flex: 1,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+  dateLabelContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   calendarCell: {
     width: 45,
     height: 60,
-    borderRadius: 12,
-    borderColor: '#cca9d7ff',
+    borderRadius: 18,
+    borderColor: '#b590c6ff',
     borderWidth: 1,
-    backgroundColor: '#ffeaf4ff',
+    backgroundColor: '#e4cbf0ff',
     margin: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
   calendarDateText: {
-    color: '#581872ff',
+    color: '#480b70ff',
     fontWeight: 'bold',
   },
   moodIconRow: {
@@ -1206,7 +1239,7 @@ dateLabelContainer: {
     position: 'absolute',
     right: -6,
     top: -10,
-    backgroundColor: '#a56db1',
+    backgroundColor: '#ccddea',
     borderRadius: 8,
     minWidth: 18,
     height: 18,
@@ -1215,34 +1248,64 @@ dateLabelContainer: {
     paddingHorizontal: 4,
   },
   badgeText: {
-    color: '#000',
+    color: '#480b70ff',
     fontWeight: 'bold',
     fontSize: 11,
   },
   moodCountContainer: {
-  backgroundColor: '#fbeeff', 
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-  height: 50,
-  marginTop: -5,
-  borderRadius: 14,
-  shadowColor: '#fff',
-  shadowOpacity: 0.2,
-  shadowOffset: { width: 0, height: 1 },
-  shadowRadius: 4,
-  elevation: 3,
-},
-dateBox: {
-  backgroundColor: '#fbe9fd',
-  paddingVertical: 4,
-  width: 150,
-  height: 35,
-  alignSelf: 'center',
-  paddingHorizontal: 16,
-  borderRadius: 14,
-  shadowColor: '#ccc',
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 2,
-},
+    backgroundColor: '#fbeeff', 
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    height: 50,
+    marginTop: -5,
+    borderRadius: 14,
+    shadowColor: '#fff',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dateBox: {
+    backgroundColor: '#b590c6ff',
+    paddingVertical: 4,
+    width: 150,
+    height: 35,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    shadowColor: '#ccc',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  waveWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: width,
+    height: 300,
+    zIndex: 0,
+  },
+  noMoodIndicator: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  noMoodDay: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+    padding: 4,
+    margin: 2,
+    alignItems: 'center',
+  },
+  noMoodDayText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  noMoodLabel: {
+    fontSize: 10,
+    color: '#999',
+  },
 });

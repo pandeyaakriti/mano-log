@@ -392,6 +392,7 @@ export default function AiChat({ navigation }: AiChatProps) {
         <View style={styles.inputContainer}>
           <View style={styles.inputBar}>
             
+            
             <TextInput
               ref={inputRef}
               style={styles.textInput}
@@ -452,6 +453,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 20,
     borderRadius: 20,
   },
   headerCenter: {

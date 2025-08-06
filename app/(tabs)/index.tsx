@@ -11,7 +11,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import Svg, { Defs, Path, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
@@ -922,6 +922,7 @@ const styles = StyleSheet.create({
   },
   greetingContainer: {
     flex: 1,
+
   },
   greeting: {
     fontSize: 24,
@@ -1023,8 +1024,10 @@ const styles = StyleSheet.create({
   },
   streakRow: {
     flexDirection: 'row',
+    gap: 20,
+    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 16,
+    //gap: 16,
   },
   streakCard: {
     backgroundColor: '#D8D5F0',
@@ -1398,3 +1401,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

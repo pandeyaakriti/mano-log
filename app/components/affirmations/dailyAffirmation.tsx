@@ -12,8 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import {
   getMoodBasedAffirmation,
-  getPersonalizedDailyAffirmation,
-  getStreakMotivation
+  getPersonalizedDailyAffirmation
 } from './affirmationData';
 import type { AffirmationState, User } from './types';
 
@@ -124,12 +123,15 @@ const DailyAffirmation: React.FC<DailyAffirmationProps> = ({
     <TouchableOpacity 
       style={styles.affirmationSection} 
       onPress={handleAffirmationTap}
-      activeOpacity={0.8}
+      activeOpacity={0.9}
     >
       <View style={styles.affirmationHeader}>
-        <Text style={styles.sectionTitle}>Daily Words of Affirmation</Text>
+        <View style={styles.titleContainer}>
+          <Icon name="flower-outline" size={18} color="#7C9885" style={styles.titleIcon} />
+          <Text style={styles.sectionTitle}>Daily Affirmation</Text>
+        </View>
         <Text style={styles.dayIndicator}>
-          {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+          {new Date().toLocaleDateString('en-US', { weekday: 'short' })}
         </Text>
       </View>
       
@@ -148,11 +150,14 @@ const DailyAffirmation: React.FC<DailyAffirmationProps> = ({
           >
             <Icon 
               name={state.isAffirmationFavorited ? "heart" : "heart-outline"} 
-              size={20} 
-              color={state.isAffirmationFavorited ? "#E91E63" : "#666"} 
+              size={18} 
+              color={state.isAffirmationFavorited ? "#D4756B" : "#B4A5A0"} 
             />
-            <Text style={styles.actionText}>
-              {state.isAffirmationFavorited ? 'Favorited' : 'Favorite'}
+            <Text style={[
+              styles.actionText,
+              state.isAffirmationFavorited && styles.actionTextActive
+            ]}>
+              {state.isAffirmationFavorited ? 'Loved' : 'Love'}
             </Text>
           </TouchableOpacity>
 
@@ -160,7 +165,7 @@ const DailyAffirmation: React.FC<DailyAffirmationProps> = ({
             style={styles.actionButton}
             onPress={shareAffirmation}
           >
-            <Icon name="share-outline" size={20} color="#666" />
+            <Icon name="paper-plane-outline" size={18} color="#B4A5A0" />
             <Text style={styles.actionText}>Share</Text>
           </TouchableOpacity>
 
@@ -168,89 +173,121 @@ const DailyAffirmation: React.FC<DailyAffirmationProps> = ({
             style={styles.actionButton}
             onPress={getAnotherAffirmation}
           >
-            <Icon name="refresh-outline" size={20} color="#666" />
-            <Text style={styles.actionText}>Another</Text>
+            <Icon name="refresh-outline" size={18} color="#B4A5A0" />
+            <Text style={styles.actionText}>Refresh</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Progress indicator */}
+      {/* Progress indicator
       {currentStreak > 0 && (
         <View style={styles.progressIndicator}>
+          <Icon name="leaf-outline" size={14} color="#E8A87C" style={styles.progressIcon} />
           <Text style={styles.progressText}>
             {getStreakMotivation(currentStreak)}
           </Text>
         </View>
-      )}
+      )} */}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   affirmationSection: {
-    marginBottom: 25,
-    backgroundColor: '#E0E8DD',
-    borderRadius: 18,
-    padding: 20,
-    
-    
-
+    marginBottom: 28,
+    backgroundColor: 'rgba(244, 236, 236, 0.9)',
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: '#7C9885',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 152, 133, 0.1)',
   },
   affirmationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  titleIcon: {
+    marginRight: 8,
   },
   sectionTitle: {
     fontSize: 17,
-    fontWeight: 'bold',
-    color: '#404644ff',
-    alignContent: 'center',
-    textAlign: 'center',
+    fontWeight: '500',
+    color: '#2D3E2F',
+    letterSpacing: 0.2,
   },
   dayIndicator: {
     fontSize: 12,
-    color: '#4CA771',
-    fontWeight: '600',
-    backgroundColor: '#C8E6C9',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
+    color: '#928b89ff',
+    fontWeight: '400',
+    backgroundColor: 'rgba(228, 203, 199, 1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    letterSpacing: 0.3,
   },
   affirmationContent: {
-    color: '#164048',
-    lineHeight: 26,
+    color: '#2D3E2F',
+    lineHeight: 24,
     fontSize: 16,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
+    fontWeight: '300',
+    letterSpacing: 0.2,
   },
   affirmationActions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 15,
-    paddingTop: 15,
+    marginTop: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#A5D6A7',
+    borderTopColor: 'rgba(124, 152, 133, 0.15)',
   },
   actionButton: {
     alignItems: 'center',
-    padding: 8,
+    padding: 12,
+    borderRadius: 16,
+    minWidth: 60,
   },
   actionText: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    color: '#B4A5A0',
+    marginTop: 6,
+    fontWeight: '300',
+    letterSpacing: 0.2,
+  },
+  actionTextActive: {
+    color: '#D4756B',
+    fontWeight: '400',
   },
   progressIndicator: {
-    marginTop: 10,
+    marginTop: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(230, 193, 193, 0.34)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  progressIcon: {
+    marginRight: 6,
   },
   progressText: {
-    fontSize: 11,
-    color: '#00877B',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#7C9885',
+    fontWeight: '300',
+    letterSpacing: 0.2,
   },
 });
 

@@ -1,50 +1,113 @@
-# Welcome to your Expo app 👋
+#  Manolog — A Log for Your Mind
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Manolog is an AI-assisted mental wellness journaling app designed to help users reflect, track emotions, and gain insights into their mental patterns.
+It combines daily journaling, mood tracking, and conversational AI support to encourage self-awareness and emotional well-being.
 
-## Get started
 
-1. Install dependencies
+##  Features
 
-   ```bash
-   npm install
-   ```
+* **Daily Reflection Journal** — Write and store personal thoughts securely
+* **Mood Selector** — Log emotional state alongside each entry
+* **AI Wellness Companion** — Supportive conversation for reflection and clarity
+* **Mood Trends Dashboard** — Visualize emotional patterns over time
+* **User Authentication** — Secure, personalized experience
+* **Entry History** — Revisit past reflections anytime
+* **Insight Generation** — AI summarizes emotional tone and patterns
 
-2. Start the app
 
-   ```bash
-   npx expo start
-   ```
+## Project Structure
 
-In the output, you'll find options to open the app in a
+```
+Manolog/
+│
+├── app/                # Expo Router screens (file-based routing)
+├── components/         # Reusable UI components
+├── services/           # API + AI integration logic
+├── assets/             # Fonts, icons, images
+└── backend/            # Optional external API (if used)
+```
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Tech Stack
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+| Layer          | Technology                             |
+| -------------- | -------------------------------------- |
+| Mobile App     | React Native + Expo                    |
+| Routing        | Expo Router                            |
+| Backend/API    | Node.js / Express                      |
+| AI Integration | LLM API (emotional insight + chat)     |
+| Database       | MongoDB / Prisma (journal + mood data) |
+| Auth           | Firebase Authentication                |
 
-## Get a fresh project
 
-When you're ready, run:
 
-```bash
+## How It Works?
+
+1. User writes a journal reflection.
+2. User selects their mood for the day.
+3. Entry is securely stored in the database.
+4. AI analyzes tone and provides supportive insight.
+5. Mood + entries contribute to trend visualization.
+6. User can chat with the wellness companion anytime.
+
+
+## Getting Started (Local Development)
+
+### 1. Install Dependencies
+
+```
+npm install
+```
+
+### 2. Start the Development Server
+
+```
+npx expo start
+```
+
+You can then open the app in:
+
+* Android Emulator
+* Physical Device using **Expo Go**
+
+## Resetting the Project
+
+If you want a clean slate while keeping the reference implementation:
+
+```
 npm run reset-project
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This moves the starter example into `app-example/` and creates a blank `/app` directory for fresh development.
 
-## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
+## AI Role in Manolog
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+The AI component is designed to:
 
-## Join the community
+* Detect emotional tone in journal text
+* Offer reflective prompts (not advice)
+* Encourage mindful self-expression
+* Provide conversational support
 
-Join our community of developers creating universal apps.
+This is not therapy or diagnosis — it is a guided self-reflection tool.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+##  Future Improvements
+
+* Offline journaling sync
+* Emotion-aware recommendations
+* Voice-to-journal input
+* Advanced mood analytics
+* End-to-end encryption for privacy
+* Cross-platform web version
+
+
+## Built For
+
+A practical exploration of:
+
+* Human-centered AI applications
+* Mobile-first mental wellness tools
+* Real-world React Native architecture
+* Emotion-aware computing systems
+

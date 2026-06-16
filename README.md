@@ -111,3 +111,8 @@ A practical exploration of:
 * Real-world React Native architecture
 * Emotion-aware computing systems
 
+demo: 
+
+https://github.com/user-attachments/assets/7a090f55-eabe-4e35-9f1e-9959d8b0226a
+
+
